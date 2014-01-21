@@ -2,15 +2,15 @@ package lab0;
 import java.io;
 
 public class Process {
-    public static void main(String[] args) {
+	public static void main(String[] args) {
 		Usage();
-        MessagePasser mpasser = new MessagePasser(args[0], args[1]);
-        BufferedReader bufreader = new BufferedReader(new InputStreamReader(System.in));
+		MessagePasser mpasser = new MessagePasser(args[0], args[1]);
+		BufferedReader bufreader = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
-            try {
+			try {
 				System.out.print("$ ");
 				String command = bufreader.readLine();
-                String[] commandArgs = command.split(" ");
+				String[] commandArgs = command.split(" ");
                 
 				if (command.equals("q")) {
 					System.exit(1);
