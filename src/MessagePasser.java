@@ -42,6 +42,9 @@ public class MessagePasser
 					if(!rule.getDest().equalsIgnoreCase(message.getDest()) || !rule.getSrc().equalsIgnoreCase(message.getSrc())
 							|| !rule.getKind().equalsIgnoreCase(message.getKind()))
 						break;
+					
+					if(rule.getSeqNum() == -1 || (rule.getSeqNum() != -1 && rule.getSeqNum() != message.getSeqNum()))
+						return;
 				}
 			else if(rule.getAction().equalsIgnoreCase("delay"))
 			{
@@ -53,6 +56,7 @@ public class MessagePasser
 					break;
 				
 				delayedMsg.add(message);
+				return;
 			}
 			else if(rule.getAction().equalsIgnoreCase("duplicate"))
 			{
@@ -68,6 +72,7 @@ public class MessagePasser
 				
 				out_buffer.add(message);
 				out_buffer.add(copy);
+				return;
 			}
 				
 		}
