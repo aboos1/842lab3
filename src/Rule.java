@@ -1,3 +1,4 @@
+package lab0;
 public class Rule
 {
 	private String type;

@@ -2,27 +2,33 @@ package lab0;
 
 import java.net.*;
 import java.io.*;
+import java.util.LinkedList;
 
 public class Receiver extends Thread {
 	
-	private int portNumber;
+	private Socket socket;
+	private LinkedList<Message> in_buffer;
 	
-	public Receiver(int aNumber) {
-		this.portNumber = aNumber;
+	public Receiver(Socket aSocket, LinkedList<Message> aBuffer) {
+		this.socket = aSocket;
+		this.in_buffer = aBuffer;
 	}
 	
 	public void run() {
+	
 		try {
-			ServerSocket sSocket = new ServerSocket(portNumber);
-			Socket clientSocket = sSocket.accept();
-			ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
+			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 			Message m;
 			while(true) {
 				m = (Message) in.readObject();
-				// push m to in_buffer
+				in_buffer.add(m);
 			}
 		}
-		catch () {
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+		catch (ClassNotFoundException e) {
+			e.printStackTrace();
 		}
 	}
 }

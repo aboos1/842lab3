@@ -1,3 +1,5 @@
+package lab0;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,16 +18,18 @@ import org.yaml.snakeyaml.Yaml;
 
 public class MessagePasser 
 {
-	private ArrayList<Message> out_buffer = new ArrayList<Message>();    //buffered writer?
+	private LinkedList<Message> out_buffer = new LinkedList<Message>();    //buffered writer?
 	private LinkedList<Message> in_buffer = new LinkedList<Message>();
 	private ArrayList<Connection> connList = new ArrayList<Connection>();
 	private ArrayList<Rule> ruleList = new ArrayList<Rule>();
 	private ArrayList<Message>delayedMsg = new ArrayList<Message>();
 	private String localHostName;
+	public static int seqNum;
 	
 	public MessagePasser(String configuration_filename, String local_name)
 	{
 		localHostName = local_name;
+		seqNum = 0;
 	}
 	
 	public void send(Message message)
@@ -33,6 +37,22 @@ public class MessagePasser
 		Rule rule;
 		Message copy;
 		boolean match = false;
+		
+		// set the message
+		boolean flag = false;
+		message.setSrc(localHostName);
+		message.setSeqNum(++seqNum);
+		for(Connection conn: connList) {
+			if(message.getDest().equals(conn.getName())) {
+				message.setHostname(conn.getIP());
+				flag = true;
+				break;
+			}
+		}
+		if (!flag) {
+			System.out.println("No matching destination");
+			return;
+		}
 		
 		for(int i=0; i < ruleList.size(); i++)
 		{
@@ -42,7 +62,7 @@ public class MessagePasser
 					if(rule.getDest().equalsIgnoreCase(message.getDest()) && rule.getSrc().equalsIgnoreCase(message.getSrc())
 							&& rule.getKind().equalsIgnoreCase(message.getKind()))
 						{
-							if(rule.getSeqNum() == -1 || (rule.getSeqNum() == message.getSeqNum())
+							if(rule.getSeqNum() == -1 || (rule.getSeqNum() == message.getSeqNum()))
 									return;
 						}				
 				}
@@ -88,7 +108,7 @@ public class MessagePasser
 	/*
 	 * Getters
 	 */
-	public ArrayList<Message> getOutBuffer()
+	public LinkedList<Message> getOutBuffer()
 	{
 		return out_buffer;
 	}
@@ -96,6 +116,11 @@ public class MessagePasser
 	public LinkedList<Message> getInBuffer()
 	{
 		return in_buffer;
+	}
+	
+	public ArrayList<Connection> getConnList()
+	{
+		return connList;
 	}
 	
 	public String getLocalName()
@@ -107,7 +132,7 @@ public class MessagePasser
 	public void parseConfig() throws FileNotFoundException 
 	{
 	    InputStream input = new FileInputStream(new File(
-	            "C:/Users/YAYA/workspace_1/DS_LAB0/src/config.yaml"));
+	            "C:/Users/Tianyi/Dropbox/Work/hello/lab0/config.yaml"));
 	    Yaml yaml = new Yaml();
 	    
 		Map<String, Map> map = yaml.loadAs(input, Map.class);
@@ -139,7 +164,7 @@ public class MessagePasser
 			}
 			else 
 			{
-				System.out.println(temp);
+				//System.out.println(temp);
 				
 				list = (ArrayList) map.get(temp);
 				for(int i = 0; i < list.size(); i++)

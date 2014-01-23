@@ -1,3 +1,5 @@
+package lab0;
+
 import java.io.Serializable;
 
 
@@ -5,7 +7,7 @@ public class Message implements Serializable
 {
 	private String dest;
 	private String src;
-	public static int seqNum;
+	private int seqNum;
 	private boolean duplicate;
 	private String kind;
 	private Object data;

@@ -3,8 +3,33 @@ import java.io.*;
 
 public class Process {
 	public static void main(String[] args) {
-		Usage();
+		if(args.length != 2) {
+			Usage();
+			System.exit(1);
+		}
 		MessagePasser mpasser = new MessagePasser(args[0], args[1]);
+		
+		try 
+		{
+			mpasser.parseConfig();
+		} 
+		catch (FileNotFoundException e) 
+		{
+			e.printStackTrace();
+		}
+		
+		Server server = new Server(mpasser);
+		server.start();
+		Client client = new Client(mpasser);
+		client.start();
+		
+		
+		try {
+			Thread.sleep(100);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
 		BufferedReader bufreader = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
 			try {
@@ -15,8 +40,8 @@ public class Process {
 				if (command.equals("q")) {
 					System.exit(1);
 				}
-				else if (commandArgs[0].equals("r")) {
-					Message amessage = mpasser.receive();
+				else if (command.equals("r")) {
+					Message aMessage = mpasser.receive();
 				}
 				else if (commandArgs[0].equals("s")) {
 					if (commandArgs.length != 4) {
@@ -24,17 +49,21 @@ public class Process {
 						continue;
 					}
 					else {
-						mpasser.send(new Message(commandArgs[1], commandArgs[2], commandArgs[3]));
+						mpasser.send(new Message(commandArgs[1], commandArgs[2], commandArgs[3])); //dest, kind, data
 					}
+				}
+				else {
+					Usage();
 				}
 	
 			} catch (IOException e) {
-				System.err.println();
+				e.printStackTrace();
 			}
 		}
 	}
                                 
 	public static void Usage() {
-		System.out.println("Usage: ");
+		System.out.println("Usage: <configuration_filename> <local_name>");
+		System.out.println("CommandLine: q: quit, r: receive, s <dest> <kind> <data>: send");
 	}
 }
