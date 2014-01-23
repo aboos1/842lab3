@@ -24,10 +24,12 @@ public class MessagePasser
 	private ArrayList<Rule> ruleList = new ArrayList<Rule>();
 	private ArrayList<Message>delayedMsg = new ArrayList<Message>();
 	private String localHostName;
+	private String configFileName;
 	public static int seqNum;
 	
 	public MessagePasser(String configuration_filename, String local_name)
 	{
+		configFileName = configuration_filename;
 		localHostName = local_name;
 		seqNum = 0;
 	}
@@ -45,12 +47,13 @@ public class MessagePasser
 		for(Connection conn: connList) {
 			if(message.getDest().equals(conn.getName())) {
 				message.setHostname(conn.getIP());
+				message.setPort(conn.getPort());
 				flag = true;
 				break;
 			}
 		}
 		if (!flag) {
-			System.out.println("No matching destination");
+			System.out.println("No matching destination!");
 			return;
 		}
 		
@@ -102,7 +105,13 @@ public class MessagePasser
 	
 	public Message receive()
 	{
-		return in_buffer.removeFirst();
+		if (in_buffer.isEmpty()) {
+			System.out.println("No more messages!");
+			return null;
+		}
+		else {
+			return in_buffer.removeFirst();
+		}
 	}
 	
 	/*
@@ -132,7 +141,7 @@ public class MessagePasser
 	public void parseConfig() throws FileNotFoundException 
 	{
 	    InputStream input = new FileInputStream(new File(
-	            "C:/Users/Tianyi/Dropbox/Work/hello/lab0/config.yaml"));
+	            "lab0/src/" + configFileName));
 	    Yaml yaml = new Yaml();
 	    
 		Map<String, Map> map = yaml.loadAs(input, Map.class);

@@ -20,6 +20,9 @@ public class Receiver extends Thread {
 			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
 			Message m;
 			while(true) {
+
+				Thread.sleep(100);
+
 				m = (Message) in.readObject();
 				in_buffer.add(m);
 			}
@@ -28,6 +31,9 @@ public class Receiver extends Thread {
 			e.printStackTrace();
 		}
 		catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
+		catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 	}

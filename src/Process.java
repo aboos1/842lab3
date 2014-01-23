@@ -33,7 +33,7 @@ public class Process {
 		BufferedReader bufreader = new BufferedReader(new InputStreamReader(System.in));
 		while (true) {
 			try {
-				System.out.print("$ ");
+				//System.out.print("$ ");
 				String command = bufreader.readLine();
 				String[] commandArgs = command.split(" ");
                 
@@ -42,6 +42,10 @@ public class Process {
 				}
 				else if (command.equals("r")) {
 					Message aMessage = mpasser.receive();
+					if (aMessage != null) {
+						System.out.println("Message #" + aMessage.getSeqNum() + " (" + aMessage.getKind() + ")"
+										+ " from " + aMessage.getSrc() + ": " + aMessage.getData());
+					}
 				}
 				else if (commandArgs[0].equals("s")) {
 					if (commandArgs.length != 4) {
