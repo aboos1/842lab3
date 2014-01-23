@@ -39,43 +39,45 @@ public class MessagePasser
 			rule = ruleList.get(i);
 			if(rule.getAction().equalsIgnoreCase("drop"))   /// revisit
 				{
-					if(!rule.getDest().equalsIgnoreCase(message.getDest()) || !rule.getSrc().equalsIgnoreCase(message.getSrc())
-							|| !rule.getKind().equalsIgnoreCase(message.getKind()))
-						break;
-					
-					if(rule.getSeqNum() == -1 || (rule.getSeqNum() != -1 && rule.getSeqNum() != message.getSeqNum()))
-						return;
+					if(rule.getDest().equalsIgnoreCase(message.getDest()) && rule.getSrc().equalsIgnoreCase(message.getSrc())
+							&& rule.getKind().equalsIgnoreCase(message.getKind()))
+						{
+							if(rule.getSeqNum() == -1 || (rule.getSeqNum() == message.getSeqNum())
+									return;
+						}				
 				}
 			else if(rule.getAction().equalsIgnoreCase("delay"))
 			{
-				if(!rule.getDest().equalsIgnoreCase(message.getDest()) || !rule.getSrc().equalsIgnoreCase(message.getSrc())
-						|| !rule.getKind().equalsIgnoreCase(message.getKind()))
-					break;
-				
-				if(rule.getSeqNum() != -1 && rule.getSeqNum() != message.getSeqNum())
-					break;
-				
-				delayedMsg.add(message);
-				return;
+				if(rule.getDest().equalsIgnoreCase(message.getDest()) && rule.getSrc().equalsIgnoreCase(message.getSrc())
+						&& rule.getKind().equalsIgnoreCase(message.getKind()))
+				{
+					if(rule.getSeqNum() == -1 || (rule.getSeqNum() == message.getSeqNum()))
+					{
+						delayedMsg.add(message);
+						return;
+					}
+							
+				}	
 			}
 			else if(rule.getAction().equalsIgnoreCase("duplicate"))
 			{
-				if(!rule.getDest().equalsIgnoreCase(message.getDest()) || !rule.getSrc().equalsIgnoreCase(message.getSrc())
-						|| !rule.getKind().equalsIgnoreCase(message.getKind()))
-					break;
+				if(rule.getDest().equalsIgnoreCase(message.getDest()) && rule.getSrc().equalsIgnoreCase(message.getSrc())
+						&& rule.getKind().equalsIgnoreCase(message.getKind()))
+				{
+					if(rule.getSeqNum() == -1 || (rule.getSeqNum() == message.getSeqNum()))
+					{
+						copy = message;
+						copy.setDuplicate(true);
+						
+						out_buffer.add(message);
+						out_buffer.add(copy);
+						return;
+					}
+				}
 				
-				if(rule.getSeqNum() != -1 && rule.getSeqNum() != message.getSeqNum())
-					break;
-				
-				copy = message;
-				copy.setDuplicate(true);
-				
-				out_buffer.add(message);
-				out_buffer.add(copy);
-				return;
 			}
-				
 		}
+		out_buffer.add(message);	
 	}
 	
 	public Message receive()
