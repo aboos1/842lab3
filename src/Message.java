@@ -1,4 +1,4 @@
-package lab0;
+//package lab0;
 
 import java.io.Serializable;
 
@@ -50,7 +50,7 @@ public class Message implements Serializable
 		
 	}
 	
-	public boolean getDupicate()
+	public boolean getDuplicate()
 	{
 		return duplicate;
 	}

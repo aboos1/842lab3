@@ -1,4 +1,4 @@
-package lab0;
+//package lab0;
 
 import java.net.*;
 import java.io.*;
@@ -8,16 +8,26 @@ public class Receiver extends Thread {
 	
 	private Socket socket;
 	private LinkedList<Message> in_buffer;
+	private ObjectInputStream in;
 	
 	public Receiver(Socket aSocket, LinkedList<Message> aBuffer) {
 		this.socket = aSocket;
 		this.in_buffer = aBuffer;
 	}
 	
+	public void teardown() {
+		try {
+			in.close();
+		}
+		catch (IOException e) {
+			System.out.println("Closing...");
+		}
+	}
+	
 	public void run() {
 	
 		try {
-			ObjectInputStream in = new ObjectInputStream(socket.getInputStream());
+			in = new ObjectInputStream(socket.getInputStream());
 			Message m;
 			while(true) {
 
@@ -28,13 +38,22 @@ public class Receiver extends Thread {
 			}
 		}
 		catch (IOException e) {
-			e.printStackTrace();
+			//e.printStackTrace();
 		}
 		catch (ClassNotFoundException e) {
 			e.printStackTrace();
 		}
 		catch (InterruptedException e) {
 			e.printStackTrace();
+		}
+		finally {
+			try {
+				socket.close();
+				in.close();
+			}
+			catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 }

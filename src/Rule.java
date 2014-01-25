@@ -1,4 +1,4 @@
-package lab0;
+//package lab0;
 public class Rule
 {
 	private String type;
@@ -6,15 +6,17 @@ public class Rule
 	private String src;
 	private String dest;
 	private String kind;
+	private Boolean duplicate;
 	private int seqNum;
 	
 	public Rule()
 	{
-		type="";
-		action = "";
-		src = "";
-		dest = "";
-		kind = "";
+		type = null;
+		action = null;
+		src = null;
+		dest = null;
+		kind = null;
+		duplicate = false;
 		seqNum = -1;
 	}
 	
@@ -32,6 +34,7 @@ public class Rule
 	{
 		return src;
 	}
+	
 	public String getDest()
 	{
 		return dest;
@@ -44,6 +47,11 @@ public class Rule
 	public int getSeqNum()
 	{
 		return seqNum;
+	}
+	
+	public Boolean getDuplicate()
+	{
+		return duplicate;
 	}
 	
 	public void setType(String t)
@@ -74,5 +82,10 @@ public class Rule
 	public void setAction(String action)
 	{
 		this.action = action;
+	}
+	
+	public void setDuplicate(Boolean flag)
+	{
+		duplicate = flag;
 	}
 }

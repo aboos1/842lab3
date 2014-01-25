@@ -1,5 +1,6 @@
-package lab0;
+//package lab0;
 import java.io.*;
+import java.util.ArrayList;
 
 public class Process {
 	public static void main(String[] args) {
@@ -15,7 +16,7 @@ public class Process {
 		} 
 		catch (FileNotFoundException e) 
 		{
-			e.printStackTrace();
+			System.out.println("File not found!");
 		}
 		
 		Server server = new Server(mpasser);
@@ -38,23 +39,36 @@ public class Process {
 				String[] commandArgs = command.split(" ");
                 
 				if (command.equals("q")) {
+					client.teardown();
+					server.teardown();
 					System.exit(1);
 				}
 				else if (command.equals("r")) {
-					Message aMessage = mpasser.receive();
-					if (aMessage != null) {
-						System.out.println("Message #" + aMessage.getSeqNum() + " (" + aMessage.getKind() + ")"
+					ArrayList<Message> messages = mpasser.receive();
+					if (messages != null) {
+						for(Message aMessage: messages) {
+						//if (aMessage != null) {
+							System.out.println("Message #" + aMessage.getSeqNum() + " (" + aMessage.getKind() + ")"
 										+ " from " + aMessage.getSrc() + ": " + aMessage.getData());
+						//}
+						}
 					}
 				}
 				else if (commandArgs[0].equals("s")) {
-					if (commandArgs.length != 4) {
+					
+					if (commandArgs.length < 4) {
 						Usage();
 						continue;
 					}
-					else {
-						mpasser.send(new Message(commandArgs[1], commandArgs[2], commandArgs[3])); //dest, kind, data
+					//else {
+					StringBuffer data = new StringBuffer();
+					for(int i = 3; i < commandArgs.length; i++) {
+						data.append(commandArgs[i] + " ");
 					}
+					//System.out.println(data.toString());
+					//for(String s)
+						mpasser.send(new Message(commandArgs[1], commandArgs[2], data.toString())); //dest, kind, data
+					//}
 				}
 				else {
 					Usage();

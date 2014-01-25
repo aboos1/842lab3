@@ -1,14 +1,38 @@
-package lab0;
+//package lab0;
 
 import java.net.*;
 import java.io.*;
+import java.util.ArrayList;
 
 public class Server extends Thread {
 	
 	private MessagePasser mpasser;
+	private ServerSocket serverSocket;
+	private ArrayList<Socket> csockets;
+	private ArrayList<Receiver> receivers;
 	
 	public Server(MessagePasser aPasser) {
 		mpasser = aPasser;
+		csockets = new ArrayList<Socket>();
+		receivers = new ArrayList<Receiver>();
+	}
+	
+	public void teardown() {
+		try {
+			serverSocket.close();
+			if(csockets != null)
+				for(Socket s: csockets) {
+					s.close();
+					//System.out.println("deleting csockets");
+				}
+			if(receivers != null)
+				for(Receiver r: receivers) {
+					r.teardown();
+				}
+		}
+		catch (IOException e) {
+			System.out.println("Closing...");
+		}
 	}
 	
 	public void run() {
@@ -17,14 +41,16 @@ public class Server extends Thread {
 			// check config
 				if(mpasser.getLocalName().equals(conn.getName())) {
 					System.out.println("Listening on port: " + conn.getPort());
-					ServerSocket serverSocket = new ServerSocket(conn.getPort());
+					serverSocket = new ServerSocket(conn.getPort());
 					while (true) {
 						
 						Thread.sleep(100);
 						
 						Socket clientSocket = serverSocket.accept();
+						csockets.add(clientSocket);
 						System.out.println("new connection from " + clientSocket.getRemoteSocketAddress().toString());
 						Receiver receiver = new Receiver(clientSocket, mpasser.getInBuffer());
+						receivers.add(receiver);
 						receiver.start();
 						
 					}
@@ -34,10 +60,10 @@ public class Server extends Thread {
 			System.exit(1);
 		}
 		catch (IOException e) {
-			e.printStackTrace();
+			System.out.println("Closing...");
 		}
 		catch (InterruptedException e) {
-			e.printStackTrace();
+			System.out.println("Closing...");
 		}
 	}
 }

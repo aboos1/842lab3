@@ -1,21 +1,40 @@
-package lab0;
+//package lab0;
 
 import java.net.*;
 import java.io.*;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.Map.Entry;
 
 public class Client extends Thread {
 
 	private MessagePasser mpasser;
 	private HashMap<String, Boolean> ssetup;
-	//private HashMap<String, Socket> connections;
+	private HashMap<String, Socket> connections;
 	private HashMap<String, ObjectOutputStream> outs;
 	
 	public Client(MessagePasser aPasser) {
 		mpasser = aPasser;
 		ssetup = new HashMap<String, Boolean>();
-		//connections = new HashMap<String, Socket>();
+		connections = new HashMap<String, Socket>();
 		outs = new HashMap<String, ObjectOutputStream>();
+	}
+	
+	public void teardown() {
+		try {
+			Set<Entry<String, Socket>> set = connections.entrySet();
+			Iterator<Entry<String, Socket>> itor = set.iterator();
+			while(itor.hasNext())
+			{
+				Entry<String, Socket> entry = itor.next();
+				entry.getValue().close();
+				//System.out.println("closing sockets");
+			}
+		}
+		catch (IOException e) {
+			System.out.println("Closing...");
+		}
 	}
 	
 	public void run() {
@@ -34,10 +53,20 @@ public class Client extends Thread {
 			if(!mpasser.getOutBuffer().isEmpty()) {
 				message = mpasser.getOutBuffer().removeFirst();
 			
-				if(ssetup.get(message.getDest()) != null) { 
+				if((ssetup.get(message.getDest()) != null) && (ssetup.get(message.getDest()) == true)) { 
 				// if connection already set up	
-					Sender sender = new Sender(message, outs.get(message.getDest()));
-					sender.start();
+					//Sender sender = new Sender(message, outs.get(message.getDest()));
+					//sender.start();
+					System.out.println("Sending message #" + message.getSeqNum() + " (" + message.getKind() + ")"
+										+ " from " + message.getSrc() + ": " + message.getData());
+					try {
+						outs.get(message.getDest()).writeObject(message);
+						outs.get(message.getDest()).flush();
+					}
+					catch (IOException e) {
+						System.out.println(message.getDest() + " not available!");
+						ssetup.put(message.getDest(), false);
+					}
 				}
 				else {
 					try {
@@ -46,17 +75,25 @@ public class Client extends Thread {
 						ObjectOutputStream oout = new ObjectOutputStream(socket.getOutputStream());
 						
 						// store the connection
-						ssetup.put(message.getDest(), true);					
+						ssetup.put(message.getDest(), true);
+						connections.put(message.getDest(), socket);
 						outs.put(message.getDest(), oout);
 						
-						Sender sender = new Sender(message, oout);
-						sender.start();
+						//Sender sender = new Sender(message, oout);
+						//sender.start();
+						System.out.println("Sending message #" + message.getSeqNum() + " (" + message.getKind() + ")"
+											+ " from " + message.getSrc() + ": " + message.getData());
+										
+						oout.writeObject(message);
+						oout.flush();
 					}
 					catch (UnknownHostException e) {
-						e.printStackTrace();
+						System.out.println(message.getDest() + " not available!");
+						ssetup.put(message.getDest(), false);
 					}
 					catch (IOException e) {
-						e.printStackTrace();
+						System.out.println(message.getDest() + " not available!");
+						ssetup.put(message.getDest(), false);
 					}
 				}
 			}
