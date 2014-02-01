@@ -3,10 +3,12 @@ import java.util.ArrayList;
 
 public class TimeStamp implements Serializable
 {
-	ClockService cs;
+	private ClockService cs;
+	private String service;
 	
 	public TimeStamp(String service, int size)
 	{
+		this.service = service;
 		cs = ClockServiceFactory.getClockService(service, size);
 	}
 
@@ -15,8 +17,13 @@ public class TimeStamp implements Serializable
 		return cs.getTimeStamp();
 	}
 	
-	public void updateTimeStamp(ArrayList<Integer> list)
+	public void updateTimeStamp(ArrayList<Integer> list, int src_pid, int dest_pid)
 	{
-		cs.updateTimeStamp(list);
+		cs.updateTimeStamp(list, src_pid, dest_pid);
+	}
+	
+	public String getClockServiceType()
+	{
+		return service;
 	}
 }

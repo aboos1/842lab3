@@ -1,7 +1,8 @@
+import java.io.Serializable;
 import java.util.ArrayList;
 
 
-public class LogicalClock implements ClockService
+public class LogicalClock implements ClockService, Serializable
 {
 	private ArrayList<Integer> timeStamp;
 	
@@ -16,13 +17,27 @@ public class LogicalClock implements ClockService
 		return timeStamp;
 	}
 	
-	public void updateTimeStamp(ArrayList<Integer> timeStamps2)
+	public void updateTimeStamp(ArrayList<Integer> timeStamps2, int src_pid, int dest_pid)
 	{
-		timeStamp.set(0, (Math.max(timeStamp.get(0), timeStamps2.get(0)) +1));
+		int time1 = timeStamp.get(0);
+		int time2 = timeStamps2.get(0);
+		
+		if (time2 >= time1) 
+			timeStamp.set(0, time2 +1);
 	}
 	
 	public String toString()
 	{
-		return Integer.toString(timeStamp.get(0));
+		String timeStamp = "(";
+		
+		int size = this.timeStamp.size();
+		
+		for(int i = 0; i < size; i++)
+			if (i == size)
+				timeStamp += this.timeStamp.get(i) + ")";
+			else
+				timeStamp += this.timeStamp.get(i) + ", ";
+		
+		return timeStamp;
 	}
 }

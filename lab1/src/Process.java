@@ -23,8 +23,9 @@ public class Process
 		{
 			System.out.println("File not found!");
 		}
-		
-		mpasser.initSystemTimeStamp(args[2], mpasser.getNbrOfProcesses());
+		mpasser.setPid();       // sets process' ID
+		//System.out.println("my pid is: " + mpasser.getPid());
+		mpasser.initSystemTimeStamp(args[2], mpasser.getNbrOfProcesses());  // initialize reference time
 		
 		Server server = new Server(mpasser);
 		server.start();
@@ -67,8 +68,11 @@ public class Process
 										+ " from " + aMessage.getSrc() + ": " + aMessage.getData());
 							
 							if(aMessage instanceof TimeStampedMessage)
-								System.out.println("time stamp is: " + ((TimeStampedMessage)aMessage).
+							{
+								System.out.println("message send time stamp is: " +
+							                       ((TimeStampedMessage)aMessage).
 										getTimeStamp().getTimeStamp());
+							}
 						}
 					}
 				}
@@ -87,15 +91,21 @@ public class Process
 						data.append(commandArgs[i] + " ");
 					}
 					
-					msg = new Message(commandArgs[1], commandArgs[2], data.toString());
-					//msg = new TimeStampedMessage(commandArgs[1], commandArgs[2], data.toString(),
-									//args[2], mpasser.getNbrOfProcesses());
+					//msg = new Message(commandArgs[1], commandArgs[2], data.toString());
+					msg = new TimeStampedMessage(commandArgs[1], commandArgs[2], data.toString(),
+									args[2], mpasser.getNbrOfProcesses(), mpasser.getSystemTimeStamp());
+					//((TimeStampedMessage) msg).setTimeStamp(mpasser.getSystemTimeStamp());
+					
 					mpasser.send(msg); //dest, kind, data
 					if(msg instanceof TimeStampedMessage)
-						System.out.println("time stamp is: " + ((TimeStampedMessage)msg).
+					{
+						System.out.println("message time stamp is: " + ((TimeStampedMessage)msg).
 								getTimeStamp().getTimeStamp());
+						System.out.println("system time is now: " + mpasser.getSystemTimeStamp().
+								getTimeStamp());
+					}
 					else
-						System.out.println("uh oh....");
+						System.out.println("uh oh...."); 
 				}
 				else 
 				{

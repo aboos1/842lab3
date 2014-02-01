@@ -1,7 +1,8 @@
+import java.io.Serializable;
 import java.util.ArrayList;
 
 
-public class VectorClock implements ClockService, Comparable<VectorClock>
+public class VectorClock implements ClockService, Comparable<VectorClock>, Serializable
 {
 	private ArrayList<Integer> timeStamps;
 	
@@ -10,7 +11,7 @@ public class VectorClock implements ClockService, Comparable<VectorClock>
 	{
 		timeStamps = new ArrayList<Integer>(size);
 		
-		for(int i=0; i<timeStamps.size(); i++)
+		for(int i=0; i<size; i++)
 			timeStamps.add(0);
 	}
 	
@@ -19,10 +20,15 @@ public class VectorClock implements ClockService, Comparable<VectorClock>
 		return timeStamps;
 	}
 
-	public void updateTimeStamp(ArrayList<Integer> timeStamps2) 
+	public void updateTimeStamp(ArrayList<Integer> timeStamps2, int src_pid, int dest_pid) 
 	{
+		// update system's timestamp vector
 		for(int i=0; i<timeStamps.size(); i++)
 			timeStamps.set(i, Math.max(timeStamps.get(i), timeStamps2.get(i)));
+		
+		// update system's timestamp
+		if(timeStamps.get(dest_pid) <= timeStamps.get(src_pid) && dest_pid != src_pid)
+			timeStamps.set(dest_pid, timeStamps.get(src_pid)+1);
 	}
 	
 	public int compareTo(VectorClock vector) 
@@ -68,5 +74,4 @@ public class VectorClock implements ClockService, Comparable<VectorClock>
 		
 		return timeStamp;
 	}
-	
 }

@@ -3,6 +3,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -17,8 +18,9 @@ public class MessagePasser
 	private LinkedList<Message> in_buffer = new LinkedList<Message>();
 	private ArrayList<Connection> connList = new ArrayList<Connection>();
 	private ArrayList<Rule> ruleList = new ArrayList<Rule>();
-	private ArrayList<Message>delayedOutMsg = new ArrayList<Message>();
-	private ArrayList<Message>delayedInMsg = new ArrayList<Message>();
+	private ArrayList<Message> delayedOutMsg = new ArrayList<Message>();
+	private ArrayList<Message> delayedInMsg = new ArrayList<Message>();
+	private HashMap<Integer, String> processes;
 	private TimeStamp systemTimeStamp;
 	private String localName;
 	private String configFileName;
@@ -26,6 +28,7 @@ public class MessagePasser
 	private File configFile;
 	private int nbrOfProcesses;
 	private long fileModTime;
+	private int pid;
 	
 	public MessagePasser(String configuration_filename, String local_name)
 	{
@@ -39,14 +42,25 @@ public class MessagePasser
 		systemTimeStamp = new TimeStamp(service, size);
 	}
 	
-	private void timeStampMessage(TimeStampedMessage message)
+	private void updateSytemTimeStamp(TimeStampedMessage message, int src_pid, int dest_pid)
 	{
-		message.getTimeStamp().updateTimeStamp(systemTimeStamp.getTimeStamp());
+		systemTimeStamp.updateTimeStamp(message.getTimeStamp().getTimeStamp(), src_pid, dest_pid);
 	}
 	
-	private void updateSytemTimeStamp(TimeStampedMessage message)
+	private void incrementSystemTime()
 	{
-		systemTimeStamp.updateTimeStamp(message.getTimeStamp().getTimeStamp());
+		try
+		{
+			if(systemTimeStamp.getClockServiceType().equalsIgnoreCase("vector"))
+				systemTimeStamp.getTimeStamp().set(pid, systemTimeStamp.getTimeStamp().get(pid)+1);
+			else   //logical
+				systemTimeStamp.getTimeStamp().set(0, systemTimeStamp.getTimeStamp().get(0)+1);
+		}
+		catch(IndexOutOfBoundsException e)
+		{
+			System.out.println(pid);
+			e.printStackTrace();
+		}
 	}
 	
 	private ArrayList<Message> processRules(Message message, String rule_type,
@@ -194,7 +208,9 @@ public class MessagePasser
 		}
 		
 		if(message instanceof TimeStampedMessage)
-			timeStampMessage((TimeStampedMessage) message);
+		{
+			incrementSystemTime();
+		}
 		
 		checkConfigUpdates();
 		
@@ -215,7 +231,13 @@ public class MessagePasser
 		 message = in_buffer.removeFirst();
 		 
 		 if(message instanceof TimeStampedMessage)
-			 updateSytemTimeStamp((TimeStampedMessage) message);
+		 {
+			 updateSytemTimeStamp((TimeStampedMessage) message, getSrcPID(message), pid);
+
+			 System.out.println("message received at: " + getSystemTimeStamp().
+						getTimeStamp());
+			 incrementSystemTime();
+		 }
 		 
 		 checkConfigUpdates();
 		
@@ -227,6 +249,11 @@ public class MessagePasser
 	/*
 	 * Getters
 	 */
+	public int getPid()
+	{
+		return pid;
+	}
+	
 	public LinkedList<Message> getOutBuffer()
 	{
 		return out_buffer;
@@ -242,6 +269,11 @@ public class MessagePasser
 		return connList;
 	}
 	
+	public HashMap<Integer, String> getProcesses()
+	{
+		return processes;
+	}
+	
 	public String getLocalName()
 	{
 		return localName;
@@ -250,6 +282,43 @@ public class MessagePasser
 	public int getNbrOfProcesses()
 	{
 		return nbrOfProcesses;
+	}
+	
+	public TimeStamp getSystemTimeStamp()
+	{
+		return systemTimeStamp;
+	}
+	
+	public void setPid()
+	{
+		/*
+		 * Assign pid
+		 */
+		for(int i = 0; i < nbrOfProcesses; i++)
+			if(processes.get(i).equalsIgnoreCase(localName))
+			{
+				pid = i;
+				break;
+			}
+	}
+	
+	/*
+	 * Return the PID of the process that sent the message
+	 * 
+	 * @return an integer
+	 */
+	public int getSrcPID(Message msg)
+	{ 
+		int src_pid = -1;
+		
+		for(int i = 0; i < nbrOfProcesses; i++)
+			if(processes.get(i).equalsIgnoreCase(msg.getSrc()))
+			{
+				src_pid = i;
+				break;
+			}
+		
+		return src_pid;
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -276,6 +345,7 @@ public class MessagePasser
 			{
 				list = (ArrayList) map.get(temp);
 				nbrOfProcesses = list.size();
+				processes = new HashMap<Integer, String>(nbrOfProcesses);
 				//System.out.println(((LinkedHashMap<String, String>) list.get(0)).get("name"));
 				for(int i = 0; i < nbrOfProcesses; i++)
 				{
@@ -284,6 +354,7 @@ public class MessagePasser
 					conn.setPort((int)((LinkedHashMap) list.get(i)).get("port")); 
 					conn.setName(((LinkedHashMap<String, String>) list.get(i)).get("name"));
 					connList.add(conn);
+					processes.put(i, conn.getName());
 				}
 				connList.trimToSize();
 				//System.out.println(msgList.size());
