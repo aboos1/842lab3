@@ -26,4 +26,9 @@ public class TimeStamp implements Serializable
 	{
 		return service;
 	}
+	
+	public ClockService getClockService()
+	{
+		return cs;
+	}
 }
