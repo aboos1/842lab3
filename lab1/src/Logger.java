@@ -19,7 +19,7 @@ import java.util.Scanner;
 public class Logger 
 {
 
-	public static final String LOGSTORE = "log.txt";
+	public static final String LOGSTORE = "log/logs.txt";
 	private static String config = null;
 	private static String procname = null;
 	static MessagePasser MsgObject =null;
@@ -35,7 +35,7 @@ public class Logger
 		ClockService cs;
 		LogJobHandler jobHandler = new LogJobHandler(port);
 		jobHandler.start();
-		ArrayList<TimeStampedMessage> ConcurrentMsgs = new ArrayList<TimeStampedMessage>();
+		
 		FileWriter fWrite = null;
 		boolean sorted = false;
 		try
@@ -90,6 +90,26 @@ public class Logger
 										sortedMsgStore.add((TimeStampedMessage) msg);
 								}
 							}
+						
+							int msgComp =0;
+							for (int i=0; i< sortedMsgStore.size(); i++){
+								for(int j=0; j< sortedMsgStore.size(); j++)
+								{
+									TimeStampedMessage m1 = sortedMsgStore.get(i);
+									TimeStampedMessage m2 = sortedMsgStore.get(j);
+									msgComp = ((VectorClock)m1.getTimeStamp().getClockService())
+											  .compareTo((VectorClock)m2.getTimeStamp().getClockService());
+								   if(msgComp == -1)
+									   System.out.println(m1 + "is less than" + m2);
+								   else if(msgComp == 1)
+									   System.out.println(m1 + "is greater than" + m2);
+								   else if(msgComp == 0)
+									   System.out.println(m1 + "is equal to " + m2);
+								   else
+									   System.out.println(m1 + "is concurrent to " + m2);
+								   
+								}
+							}
 						}
 						else //for logical clock service
 							for(Message msg : MsgStore)
@@ -106,7 +126,7 @@ public class Logger
 										{
 											sorted = true;
 											sortedMsgStore.add(sortedMsgStore.indexOf(tst_msg)+1, 
-												(TimeStampedMessage)msg);
+													(TimeStampedMessage)msg);
 											break;
 										}
 										else if(((TimeStampedMessage) msg).getTimeStamp().getTimeStamp().get(0) <=
@@ -123,21 +143,9 @@ public class Logger
 								}
 							}
 					}
-						
-					//Collections.sort(MsgStore);
-					/*for(int i=0; i< MsgStore.size(); i++)
-					{
-						if(i+1 < MsgStore.size())
-						{
-							//Concurrent Messages condition.. NOT SURE 
-							//need to do this or comparision?
-							if( ( MsgStore.get(i).compare((MsgStore.get(i+1))) ==  0)){
-								ConcurrentMsgs.add(i, MsgStore.get(i));
-							}
-						}
-						fWrite.write(MsgStore.get(i).toString() + "\n");			
-					}*/
+
 					
+
 					for(TimeStampedMessage tst_msg: sortedMsgStore)
 						fWrite.write(tst_msg.toString() + "\n");
 					fWrite.close();	
@@ -151,50 +159,50 @@ public class Logger
 }
 
 
-	class LogJobHandler extends Thread
+class LogJobHandler extends Thread
+{
+	//need to get the port
+	int port;
+	public LogJobHandler(int port)
 	{
-		//need to get the port
-		int port;
-		public LogJobHandler(int port)
-		{
-			this.port = port;
-		}
-		public void run()
-		{
+		this.port = port;
+	}
+	public void run()
+	{
 
-			ServerSocket sServer = null ;
-			try{
-				sServer = new ServerSocket(port) ;  
-				//start accepting messages
-				while(true)
-				{
-					Socket socket = sServer.accept();
-					fillInReceiveQueue(socket);	 
-				}
+		ServerSocket sServer = null ;
+		try{
+			sServer = new ServerSocket(port) ;  
+			//start accepting messages
+			while(true)
+			{
+				Socket socket = sServer.accept();
+				fillInReceiveQueue(socket);	 
 			}
+		}
+		catch (IOException e) 
+		{
+			e.printStackTrace();
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+		finally
+		{
+			try 
+			{
+				/* close the service */
+				sServer.close();
+			} 
 			catch (IOException e) 
 			{
 				e.printStackTrace();
 			}
-			catch(Exception e)
-			{
-				e.printStackTrace();
-			}
-			finally
-			{
-				try 
-				{
-					/* close the service */
-					sServer.close();
-				} 
-				catch (IOException e) 
-				{
-					e.printStackTrace();
-				}
-			}
+		}
 
 	}
-	
+
 
 
 	private void fillInReceiveQueue(Socket socket) throws InterruptedException
@@ -244,7 +252,7 @@ public class Logger
 					revInputStream.close();
 			} 
 			catch(Exception e){e.printStackTrace();}
-			
+
 			try
 			{
 				socket.close();
@@ -252,7 +260,7 @@ public class Logger
 			catch(Exception e){e.printStackTrace();}
 		}
 
-	  }
+	}
 
 	}
 
