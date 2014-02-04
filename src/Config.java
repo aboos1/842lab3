@@ -15,8 +15,7 @@ public class Config {
 	List<Rule> sendRules;
 	List<Rule> receiveRules;
 
-
-	ArrayList<Group> groupList;
+	List<Group> groupList;
 	boolean isLogical;
 
 	public Config() {
@@ -50,12 +49,21 @@ public class Config {
 		return null;
 	}
 	
-	public ArrayList<Group> getGroupList() {
+	public List<Group> getGroupList() {
 		return groupList;
 	}
 
-	public void setGroupList(ArrayList<Group> groupList) {
+	public void setGroupList(List<Group> groupList) {
 		this.groupList = groupList;
+	}
+
+	public ArrayList<String> findGroupMember(String groupName) {
+		for(Group e : this.groupList) {
+			if(e.getGroupName().equals(groupName))
+				return e.getMemberList();
+		}
+		System.out.println("We cannot find this group");
+		return null;
 	}
 
 	@Override
