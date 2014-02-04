@@ -1,0 +1,57 @@
+# Defines which nodes are used in the system and how to connect to them.    
+# This element should only be referenced during the constructor's initial 
+# setup.  
+# All names must be unique.   
+# No other nodes are known.   
+# These names will be used for src and dest addresses for the Message 
+# The local node’s name is included in this list  
+configuration :   
+    - name : p1 
+      ip: 128.237.210.21   
+      port : 49996
+      clockType: vector
+    - name : p2 
+      ip : 128.237.210.21  
+      port : 42558   
+      clockType: vector
+    - name : p3  
+      ip : 128.237.210.21    
+      port : 50003  
+      clockType: vector
+    - name : p4
+      ip : 128.237.210.21   
+      port : 59877  
+      clockType: vector
+    - name : logger
+      ip : 128.237.210.21
+      port : 61225
+      clockType: vector
+sendRules :
+    - action : delay
+      dest : p4
+      kind : HTTP_REPLY
+    
+    - action : drop  
+      dest : p4
+      kind : Lookup
+
+    - action : duplicate
+      kind : Request
+      dest : p4
+
+    - action : duplicate
+      kind : Random
+      dest : p2
+
+    - action : delay
+      kind : log    
+receiveRules :    
+    - action : drop
+      src : p2
+      dest : p4
+      duplicate : true
+
+    - action : delay
+      dest : p4
+      kind : HTTP_DELAY
+      
