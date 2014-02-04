@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -7,10 +8,17 @@ import java.util.List;
  */
 
 public class Config {
+
+
+
 	List<SocketInfo> configuration;
 	List<Rule> sendRules;
 	List<Rule> receiveRules;
+
+
+	ArrayList<Group> groupList;
 	boolean isLogical;
+
 	public Config() {
 	}
 	
@@ -42,9 +50,19 @@ public class Config {
 		return null;
 	}
 	
+	public ArrayList<Group> getGroupList() {
+		return groupList;
+	}
+
+	public void setGroupList(ArrayList<Group> groupList) {
+		this.groupList = groupList;
+	}
+
 	@Override
 	public String toString() {
 		return "Config [configuration=" + configuration + ", sendRules="
-				+ sendRules + ", receiveRules=" + receiveRules + ", isLogical=" + isLogical + "]";
-	}
+				+ sendRules + ", receiveRules=" + receiveRules + ", groupList="
+				+ groupList + ", isLogical=" + isLogical + "]";
+	}	
+
 }
