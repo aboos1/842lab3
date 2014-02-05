@@ -91,7 +91,8 @@ public class MessagePasser {
 						if(rule.getAction().equals("drop")) {
 							synchronized (delayRecvQueue) {
 								while(!delayRecvQueue.isEmpty()) {
-									recvQueue.add(delayRecvQueue.pollLast());
+									addToRecvQueue(recvQueue, delayRecvQueue.pollLast());
+									//recvQueue.add(delayRecvQueue.pollLast());
 								}
 							}
 							continue;
@@ -99,12 +100,15 @@ public class MessagePasser {
 						else if(rule.getAction().equals("duplicate")) {
 							System.out.println("Duplicating message");
 							synchronized(recvQueue) {
-								recvQueue.add(msg);
-								recvQueue.add(msg.makeCopy());
+								addToRecvQueue(recvQueue, msg);
+								addToRecvQueue(recvQueue, msg.makeCopy());
+								//recvQueue.add(msg);
+								//recvQueue.add(msg.makeCopy());
 								
 								synchronized (delayRecvQueue) {
 									while(!delayRecvQueue.isEmpty()) {
-										recvQueue.add(delayRecvQueue.pollLast());
+										addToRecvQueue(recvQueue, delayRecvQueue.pollLast());
+										//recvQueue.add(delayRecvQueue.pollLast());
 									}
 								}
 							}
@@ -120,10 +124,12 @@ public class MessagePasser {
 					}
 					else {
 						synchronized(recvQueue) {
-							recvQueue.add(msg);
+							addToRecvQueue(recvQueue, msg);
+							//recvQueue.add(msg);
 							synchronized (delayRecvQueue) {
 								while(!delayRecvQueue.isEmpty()) {
-									recvQueue.add(delayRecvQueue.pollLast());
+									addToRecvQueue(recvQueue, delayRecvQueue.pollLast());
+									//recvQueue.add(delayRecvQueue.pollLast());
 								}
 							}
 						}
@@ -525,6 +531,20 @@ System.out.println("TS entered into logEvent" + ts.toString());
 			for(SocketInfo e : this.config.configuration) {
 				map.put(e.getName(), 0);
 			}
+		}
+	}
+	
+	public void addToRecvQueue(LinkedList<Message> recvQueue, Message msg) {
+		int i = 0, size = 0;
+		synchronized(recvQueue) {
+			size = recvQueue.size();
+			for(;i < size;i ++) {
+				TimeStampedMessage tmp = (TimeStampedMessage)recvQueue.get(i);
+				if(tmp.getMsgTS().compare(((TimeStampedMessage)msg).getMsgTS()) != TimeStampRelation.greaterEqual) {
+					break;
+				}
+			}
+			recvQueue.add(i, msg);
 		}
 	}
 	@Override
