@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,6 +33,8 @@ public class MessagePasser {
 	private LinkedList<Message> recvQueue = new LinkedList<Message>(); //store all the received msg from all receive sockets
 	private HashMap<String, ObjectOutputStream> outputStreamMap = new HashMap<String, ObjectOutputStream>();
 	private Map<SocketInfo, Socket> sockets = new HashMap<SocketInfo, Socket>();
+	private Map<String[],List<Message>> holdBackMap = new HashMap<String[],List<Message>>();
+	private Map<NackItem,Message> allMsg = new HashMap<NackItem,Message>();
 	
 	private String configFilename;
 
@@ -44,8 +47,8 @@ public class MessagePasser {
 	
 	private ClockService clockSer;
 	
-	private Map<String, Integer> seqNums = new HashMap<String, Integer>();
-
+	private Map<String[], Integer> seqNums = new HashMap<String[], Integer>(); // map of SEEN seq Nums
+	private Map<String[], Integer> lateSeqNums = new HashMap<String[], Integer>(); // map of SEEN late seq Nums
 
 	private enum RuleType {
 		SEND,
@@ -79,64 +82,72 @@ public class MessagePasser {
 		public ListenThread(Socket sock) {
 			this.LisSock = sock;
 		}
+
 		public void run() {
 
 			try {
-				ObjectInputStream in = new ObjectInputStream(this.LisSock.getInputStream());
+				ObjectInputStream in = new ObjectInputStream(
+						this.LisSock.getInputStream());
 
-				while(true) {
-					TimeStampedMessage msg = (TimeStampedMessage)in.readObject();
-//msg.dumpMsg();
-					parseConfig();
-					Rule rule = null;
-					if((rule = matchRule(msg, RuleType.RECEIVE)) != null) {
-						if(rule.getAction().equals("drop")) {
-							synchronized (delayRecvQueue) {
-								while(!delayRecvQueue.isEmpty()) {
-									addToRecvQueue(recvQueue, delayRecvQueue.pollLast());
-									//recvQueue.add(delayRecvQueue.pollLast());
-								}
-							}
-							continue;
-						}
-						else if(rule.getAction().equals("duplicate")) {
-							System.out.println("Duplicating message");
-							synchronized(recvQueue) {
-								addToRecvQueue(recvQueue, msg);
-								addToRecvQueue(recvQueue, msg.makeCopy());
-								//recvQueue.add(msg);
-								//recvQueue.add(msg.makeCopy());
-								
+				while (true) {
+					TimeStampedMessage msg = (TimeStampedMessage) in
+							.readObject();
+
+					if (msg.getKind().equalsIgnoreCase("NACK")) {
+						getNACK(msg);
+					} else {
+						if (msg.getKind().equalsIgnoreCase("NACK REPLY")) {
+							msg = (TimeStampedMessage)msg.getData();
+						} 
+					
+						// msg.dumpMsg();
+						parseConfig();
+						Rule rule = null;
+						if ((rule = matchRule(msg, RuleType.RECEIVE)) != null) {
+							if (rule.getAction().equals("drop")) {
 								synchronized (delayRecvQueue) {
-									while(!delayRecvQueue.isEmpty()) {
-										addToRecvQueue(recvQueue, delayRecvQueue.pollLast());
-										//recvQueue.add(delayRecvQueue.pollLast());
+									while (!delayRecvQueue.isEmpty()) {
+										checkAdd(delayRecvQueue.pollLast());
+										// recvQueue.add(delayRecvQueue.pollLast());
+									}
+								}
+								continue;
+							} else if (rule.getAction().equals("duplicate")) {
+								System.out.println("Duplicating message");
+								synchronized (recvQueue) {
+									checkAdd(msg);
+									checkAdd(msg.makeCopy());
+									// recvQueue.add(msg);
+									// recvQueue.add(msg.makeCopy());
+
+									synchronized (delayRecvQueue) {
+										while (!delayRecvQueue.isEmpty()) {
+											checkAdd(delayRecvQueue.pollLast());
+											// recvQueue.add(delayRecvQueue.pollLast());
+										}
+									}
+								}
+							} else if (rule.getAction().equals("delay")) {
+								synchronized (delayRecvQueue) {
+									delayRecvQueue.add(msg);
+								}
+							} else {
+								System.out.println("We receive a wierd msg!");
+							}
+						} else {
+							synchronized (recvQueue) {
+								addToRecvQueue(recvQueue, msg);
+								// recvQueue.add(msg);
+								synchronized (delayRecvQueue) {
+									while (!delayRecvQueue.isEmpty()) {
+										checkAdd(delayRecvQueue.pollLast());
+										// recvQueue.add(delayRecvQueue.pollLast());
 									}
 								}
 							}
 						}
-						else if(rule.getAction().equals("delay")) {
-							synchronized(delayRecvQueue) {
-								delayRecvQueue.add(msg);
-							}
-						}
-						else {
-							System.out.println("We receive a wierd msg!");
-						}
-					}
-					else {
-						synchronized(recvQueue) {
-							addToRecvQueue(recvQueue, msg);
-							//recvQueue.add(msg);
-							synchronized (delayRecvQueue) {
-								while(!delayRecvQueue.isEmpty()) {
-									addToRecvQueue(recvQueue, delayRecvQueue.pollLast());
-									//recvQueue.add(delayRecvQueue.pollLast());
-								}
-							}
-						}
-					}
 
+					}
 				}
 			} catch (EOFException e2) {
 				System.out.println("A peer disconnected");
@@ -165,6 +176,7 @@ public class MessagePasser {
 				//  Auto-generated catch block
 				e.printStackTrace();
 			}
+		
 		}
 
 		
@@ -202,12 +214,6 @@ public class MessagePasser {
 				map.put(e.getName(), 0);
 			}
 		}
-		
-		/* Initialize group Sequence Numbers to 0 */
-		for(Group g : config.getGroupList()){
-			seqNums.put(g.getGroupName(), 0);
-		}
-		
 		
 		/* */
 		hostSocketInfo = config.getConfigSockInfo(localName);
@@ -304,10 +310,13 @@ System.out.println("TS add by 1");
 	private void checkSend(Message message){
 		// check if multicast
 		if(config.getGroup(message.getDest()) != null){ // multicast message
-			int sNum = seqNums.get(message.getDest());
-			seqNums.put(message.getDest(), sNum + 1);
-			((TimeStampedMessage)message).setGrpSeqNum(sNum);
 			Group sendGroup = config.getGroup(message.getDest());
+			String srcGrp[] = {localName,sendGroup.getGroupName()};
+			int sNum = seqNums.get(srcGrp);
+			seqNums.put(srcGrp, sNum + 1);
+			NackItem ni = new NackItem(srcGrp,sNum);
+			allMsg.put(ni,message);
+			((TimeStampedMessage)message).setGrpSeqNum(sNum);
 			for(String member : sendGroup.getMemberList() ){
 				doSend(message, member);
 			}
@@ -550,6 +559,119 @@ System.out.println("TS entered into logEvent" + ts.toString());
 			HashMap<String, Integer> map = this.clockSer.getTs().getVectorClock();
 			for(SocketInfo e : this.config.configuration) {
 				map.put(e.getName(), 0);
+			}
+		}
+	}
+	
+	public void checkAdd(Message msg){
+		
+		if(config.getGroup(msg.getDest()) != null){ // multicast message
+			
+			String[] srcGrp = {msg.getSrc(),msg.getDest()};
+			int getNum = ((TimeStampedMessage)msg).getGrpSeqNum();
+			NackItem ni = new NackItem(srcGrp, getNum);
+			allMsg.put(ni, msg);
+	
+			int seenNum = seqNums.get(srcGrp);
+			
+			if(seenNum == getNum){ // duplicate message. Ignore
+				return;
+			} else if((seenNum + 1) == getNum){ //in order. add to recvQueue
+				updateSequenceNumber(srcGrp);
+				addToRecvQueue(recvQueue,msg);
+				updateHoldback(msg);
+			} else {
+				addToHoldBack(msg);
+				lateSeqNums.put(srcGrp, getNum);
+				sendNACK();
+			}
+		} else { // regular message
+			addToRecvQueue(recvQueue,msg);
+		}
+	}
+	
+	public void addToHoldBack(Message msg){
+		String[] srcGrp = {msg.getSrc(),msg.getDest()};
+		List<Message> messagesInGroup;
+		if(holdBackMap.containsKey(srcGrp)){
+			messagesInGroup = holdBackMap.get(srcGrp);
+			// insert in order
+			int i;
+			for(i = 0; i < messagesInGroup.size(); i++){
+				if(((TimeStampedMessage)msg).getGrpSeqNum() < ((TimeStampedMessage)messagesInGroup.get(i)).getGrpSeqNum()){
+					messagesInGroup.add(i, msg);
+					break;
+				}
+			} 
+			
+			if(i == messagesInGroup.size()){
+				messagesInGroup.add(msg);
+			}
+		} else {
+			messagesInGroup = new ArrayList<Message>();
+			messagesInGroup.add(msg);
+		}
+		
+		holdBackMap.put(srcGrp, messagesInGroup);
+		
+		return;
+	}
+	
+	public void updateSequenceNumber(String[] srcGrp){
+		int curr = seqNums.get(srcGrp);
+		seqNums.put(srcGrp, curr + 1);
+	}
+	
+	public void updateHoldback(Message msg){
+		String[] srcGrp = {msg.getSrc(),msg.getDest()};
+		if(holdBackMap.containsKey(srcGrp)){
+			List<Message> messagesInGroup = holdBackMap.get(srcGrp);
+			while(!messagesInGroup.isEmpty() &&
+					(int)((TimeStampedMessage)messagesInGroup.get(0)).getGrpSeqNum() 
+					== (int)(seqNums.get(srcGrp) + 1)){
+				updateSequenceNumber(srcGrp);
+				addToRecvQueue(recvQueue,messagesInGroup.get(0));
+				messagesInGroup.remove(0);
+			}
+		}
+	}
+	
+	public void sendNACK(){
+		// send missing seq Nums
+		// send last seq Nums
+		
+		List<NackItem> nackContent = new ArrayList<NackItem>();
+		
+		for(Group g : config.getGroupList()){
+			for(String member : g.getMemberList()){
+				String[] srcGrp = {member,g.getGroupName()};
+				if(lateSeqNums.containsKey(srcGrp)){ // missing
+					List<NackItem> nackContentSrc = new ArrayList<NackItem>();
+					for(int i = seqNums.get(srcGrp) + 1; i < lateSeqNums.get(srcGrp); i++){
+						NackItem nack = new NackItem(srcGrp,i);
+						nackContent.add(nack);
+						nackContentSrc.add(nack);
+					}
+					TimeStampedMessage nackMsgSrc = new TimeStampedMessage(srcGrp[0],"NACK",nackContentSrc,null);
+					doSend(nackMsgSrc, srcGrp[0]); // send to original sender (might not be in group)
+				} else {
+					NackItem nack = new NackItem(srcGrp,seqNums.get(srcGrp) + 1);
+					nackContent.add(nack);
+				}
+			}
+			
+			TimeStampedMessage nackMsg = new TimeStampedMessage(g.getGroupName(),"NACK",nackContent,null);
+			checkSend(nackMsg); // skips rules and TS setting
+		}
+	}
+	
+	public void getNACK(Message msg){
+		@SuppressWarnings("unchecked")
+		List<NackItem> nackContent = (List<NackItem>)msg.getData();
+		for(NackItem nack : nackContent){
+			if(allMsg.containsKey(nack)){ // if has message
+				Message nackReply = new TimeStampedMessage(msg.getSrc(), "NACK REPLY", allMsg.get(nack),null);
+				doSend(nackReply,nackReply.getDest());
 			}
 		}
 	}

@@ -12,7 +12,6 @@ public class Config {
 	List<SocketInfo> configuration;
 	List<Rule> sendRules;
 	List<Rule> receiveRules;
-
 	List<Group> groupList;
 	boolean isLogical;
 
