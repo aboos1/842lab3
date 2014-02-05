@@ -43,6 +43,8 @@ public class MessagePasser {
 	private static int currSeqNum;
 	
 	private ClockService clockSer;
+	
+	private Map<String, Integer> seqNums = new HashMap<String, Integer>();
 
 
 	private enum RuleType {
@@ -195,6 +197,11 @@ public class MessagePasser {
 			}
 		}
 		
+		/* Initialize group Sequence Numbers to 0 */
+		for(Group g : config.getGroupList()){
+			seqNums.put(g.getGroupName(), 0);
+		}
+		
 		
 		/* */
 		hostSocketInfo = config.getConfigSockInfo(localName);
@@ -250,18 +257,18 @@ System.out.println("TS add by 1");
 				
 				
 				/* Send 'message' and 'dupMsg' */
-				doSend(message);
+				checkSend(message);
 				/* update the timestamp */
 				this.clockSer.addTS(this.localName);
 				((TimeStampedMessage)dupMsg).setMsgTS(this.clockSer.getTs().makeCopy());
 System.out.println("TS add by 1");
-				doSend(dupMsg);
+				checkSend(dupMsg);
 				
 				/* We need to send delayed messages after new message.
 				 * This was clarified in Live session by Professor.
 				 */
 				for(Message m : delaySendQueue) {
-					doSend(m);
+					checkSend(m);
 				}
 				delaySendQueue.clear();
 
@@ -275,27 +282,40 @@ System.out.println("TS add by 1");
 			}
 		}
 		else {
-			doSend(message);
+			checkSend(message);
 			
 			/* We need to send delayed messages after new message.
 			 * This was clarified in Live session by Professor.
 			 */
 			for(Message m : delaySendQueue) {
-				doSend(m);
+				checkSend(m);
 			}
 			delaySendQueue.clear();
 		}
 		
 	}
 	
-	private void doSend(Message message) {
+	private void checkSend(Message message){
+		// check if multicast
+		if(config.getGroup(message.getDest()) != null){ // multicast message
+			int sNum = seqNums.get(message.getDest());
+			seqNums.put(message.getDest(), sNum + 1);
+			((TimeStampedMessage)message).setGrpSeqNum(sNum);
+			Group sendGroup = config.getGroup(message.getDest());
+			for(String member : sendGroup.getMemberList() ){
+				doSend(message, member);
+			}
+			
+		} else { // regular message
+			doSend(message, message.getDest());
+		}
+	}
+	
+	private void doSend(Message message, String dest) {
 		
 		TimeStampedMessage msg = (TimeStampedMessage)message;
 		
-
-		
 		/* end fill*/
-		String dest = msg.getDest();
 		Socket sendSock = null;
 		for(SocketInfo inf : sockets.keySet()) {
 			if(inf.getName().equals(dest)) {
@@ -331,7 +351,7 @@ System.out.println("TS add by 1");
 		ObjectOutputStream out;
 		try {
 			out = outputStreamMap.get(dest);
-System.out.println("msgTS in doSend" + msg.getMsgTS().toString());			
+			System.out.println("msgTS in doSend" + msg.getMsgTS().toString());			
 			out.writeObject(msg);
 			out.flush();
 			

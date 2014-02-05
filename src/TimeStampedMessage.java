@@ -2,6 +2,7 @@
 public class TimeStampedMessage extends Message {
 
 	private TimeStamp msgTS = null;
+	private int grpSeqNum = 0;
 	
 	public TimeStampedMessage(String dest, String kind, Object data, TimeStamp ts) {
 		super(dest, kind, data);
@@ -19,6 +20,14 @@ public class TimeStampedMessage extends Message {
 	
 	public void setMsgTS(TimeStamp msgTS) {
 		this.msgTS = msgTS;
+	}
+	
+	public void setGrpSeqNum(int grpSeqNum) {
+		this.grpSeqNum = grpSeqNum;
+	}
+	
+	public int getGrpSeqNum() {
+		return grpSeqNum;
 	}
 	
 	public Message makeCopy() {

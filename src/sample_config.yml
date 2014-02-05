@@ -7,11 +7,11 @@
 # The local node’s name is included in this list  
 configuration :   
     - name : p1 
-      ip: 128.237.210.21   
+      ip: 127.0.0.1  
       port : 49996
       clockType: vector
     - name : p2 
-      ip : 128.237.210.21  
+      ip : 127.0.0.1  
       port : 42558   
       clockType: vector
     - name : p3  
@@ -23,7 +23,7 @@ configuration :
       port : 59877  
       clockType: vector
     - name : logger
-      ip : 128.237.210.21
+      ip : 127.0.0.1
       port : 61225
       clockType: vector
 sendRules :

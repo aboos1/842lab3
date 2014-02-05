@@ -9,8 +9,6 @@ import java.util.List;
 
 public class Config {
 
-
-
 	List<SocketInfo> configuration;
 	List<Rule> sendRules;
 	List<Rule> receiveRules;
@@ -44,6 +42,15 @@ public class Config {
 		for(SocketInfo s : configuration) {
 			if(s.getName().equals(name)) {
 				return s;
+			}
+		}
+		return null;
+	}
+	
+	public Group getGroup(String name) {
+		for(Group g : groupList) {
+			if(g.getGroupName().equals(name)) {
+				return g;
 			}
 		}
 		return null;
