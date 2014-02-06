@@ -1,11 +1,4 @@
-# Defines which nodes are used in the system and how to connect to them.    
-# This element should only be referenced during the constructor's initial 
-# setup.  
-# All names must be unique.   
-# No other nodes are known.   
-# These names will be used for src and dest addresses for the Message 
-# The local nodeâ€™s name is included in this list  
-configuration :   
+configuration :
     - name : p1 
       ip: 127.0.0.1  
       port : 49996
@@ -54,13 +47,13 @@ receiveRules :
     - action : delay
       dest : p4
       kind : HTTP_DELAY
-groups : # A single, top-level section in the YAML file	
-    - name : Group1 # Group names must be unique	
-      members : # Any number of members in the group	
-        - p1
-        - p2
-    - name : Group2 # As many groups as youÕd like	
-      members :	
-        - p2
-        - p3
- 
+groupList : 
+    - groupName : Group1
+      members :
+        - membername : p1
+        - membername : p2
+
+    - groupName : Group2
+      members : 
+        - membername : p2
+        - membername : p3

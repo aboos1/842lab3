@@ -197,7 +197,11 @@ public class MessagePasser {
 			//  Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+		/*debug for parsing yaml to see whether we get the correct groups */
+		for(Group g : this.config.getGroupList()) {
+			System.out.println(g.toString());
+		}
+		/* end debug */
 		/* Now, using localName get *this* MessagePasser's SocketInfo and
 		 * setup the listening socket and all other sockets to other hosts.
 		 * 
@@ -310,7 +314,7 @@ System.out.println("TS add by 1");
 			delaySendQueue.clear();
 		}
 		
-	}
+	} 
 	
 	private void checkSend(Message message){
 		// check if multicast
@@ -506,7 +510,14 @@ System.out.println("TS entered into logEvent" + ts.toString());
 	    
 	    /* SnakeYAML will parse and populate the Config object for us */
 	    config = (Config) yaml.load(input);
-	    
+	    /*some tricky hack to take care of Groups */
+	    for(Group g : this.config.getGroupList()) {
+	    	List<String> tmpList = g.getMemberList();
+	    	tmpList.clear();
+	    	for(Member e : g.getMembers()) {
+	    		tmpList.add(e.getMembername());
+	    	}
+	    }
 	    /* XXX: Assigning config.isLogical based on 
 	     * SocketInfo data is a big hack. I could not make it work 
 	     * with normal yaml.load, hence had to go with this hack. 

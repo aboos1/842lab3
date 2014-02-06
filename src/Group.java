@@ -1,14 +1,24 @@
 import java.util.ArrayList;
+import java.util.List;
 
 
 public class Group {
 
-	private String groupName = null;
-	private ArrayList<String> memberList = null;
-	
+	private String groupName;
+
+	private List<String> memberList;
+	private List<Member> members;
+
+
+
+	public Group() {
+		this.memberList = new ArrayList<String>();
+		this.members = new ArrayList<Member>();
+	}
 	public Group(String name) {
 		this.groupName = name;
 		this.memberList = new ArrayList<String>();
+		this.members = new ArrayList<Member>();
 	}
 	
 	public Group(String groupName, ArrayList<String> memberList) {
@@ -28,18 +38,25 @@ public class Group {
 		this.groupName = groupName;
 	}
 
-	public ArrayList<String> getMemberList() {
+	public List<String> getMemberList() {
 		return memberList;
 	}
 
-	public void setMemberList(ArrayList<String> memberList) {
+	public void setMemberList(List<String> memberList) {
 		this.memberList = memberList;
+	}
+	
+	public List<Member> getMembers() {
+		return members;
+	}
+	public void setMembers(List<Member> members) {
+		this.members = members;
 	}
 
 	@Override
 	public String toString() {
 		return "Group [groupName=" + groupName + ", memberList=" + memberList
-				+ "]";
+				+ ", members=" + members + "]";
 	}
 	
 }

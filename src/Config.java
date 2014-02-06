@@ -63,7 +63,7 @@ public class Config {
 		this.groupList = groupList;
 	}
 
-	public ArrayList<String> findGroupMember(String groupName) {
+	public List<String> findGroupMember(String groupName) {
 		for(Group e : this.groupList) {
 			if(e.getGroupName().equals(groupName))
 				return e.getMemberList();
