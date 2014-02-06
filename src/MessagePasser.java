@@ -310,17 +310,12 @@ public class MessagePasser {
 			}
 			delaySendQueue.clear();
 		}
-<<<<<<< HEAD
-		
-	} 
-	
-	private void checkSend(Message message){
-=======
+
 
 	}
 
 	private void checkSend(Message message) {
->>>>>>> 71b85561c53feb5679cb3ad2cc363a07032ad716
+
 		// check if multicast
 		if (config.getGroup(message.getDest()) != null) { // multicast message
 			Group sendGroup = config.getGroup(message.getDest());
