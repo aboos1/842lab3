@@ -3,6 +3,11 @@
  * Group 41 - ajaltade & dil1
  */
 
+/*
+ * TODO: figure out what seq nums to nack - iterate holdback
+ * 
+ */
+
 import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
@@ -271,9 +276,9 @@ System.out.println("TS add by 1");
 				/* Send 'message' and 'dupMsg' */
 				checkSend(message);
 				/* update the timestamp */
-				this.clockSer.addTS(this.localName);
+				//this.clockSer.addTS(this.localName);
 				((TimeStampedMessage)dupMsg).setMsgTS(this.clockSer.getTs().makeCopy());
-System.out.println("TS add by 1");
+				//System.out.println("TS add by 1");
 				checkSend(dupMsg);
 				
 				/* We need to send delayed messages after new message.
@@ -314,6 +319,7 @@ System.out.println("TS add by 1");
 			String srcGrp[] = {localName,sendGroup.getGroupName()};
 			int sNum = seqNums.get(srcGrp);
 			seqNums.put(srcGrp, sNum + 1);
+			// change to update function
 			NackItem ni = new NackItem(srcGrp,sNum);
 			allMsg.put(ni,message);
 			((TimeStampedMessage)message).setGrpSeqNum(sNum);
@@ -574,7 +580,7 @@ System.out.println("TS entered into logEvent" + ts.toString());
 	
 			int seenNum = seqNums.get(srcGrp);
 			
-			if(seenNum == getNum){ // duplicate message. Ignore
+			if(seenNum <= getNum){ // duplicate message. Ignore
 				return;
 			} else if((seenNum + 1) == getNum){ //in order. add to recvQueue
 				updateSequenceNumber(srcGrp);
@@ -582,6 +588,7 @@ System.out.println("TS entered into logEvent" + ts.toString());
 				updateHoldback(msg);
 			} else {
 				addToHoldBack(msg);
+				// TODO: add way to get all missing numbers - iterate holdback
 				lateSeqNums.put(srcGrp, getNum);
 				sendNACK();
 			}
@@ -639,6 +646,7 @@ System.out.println("TS entered into logEvent" + ts.toString());
 	public void sendNACK(){
 		// send missing seq Nums
 		// send last seq Nums
+		// TODO: make sendNack iterate through holdback to figure out missing
 		
 		List<NackItem> nackContent = new ArrayList<NackItem>();
 		
@@ -652,6 +660,7 @@ System.out.println("TS entered into logEvent" + ts.toString());
 						nackContent.add(nack);
 						nackContentSrc.add(nack);
 					}
+					
 					TimeStampedMessage nackMsgSrc = new TimeStampedMessage(srcGrp[0],"NACK",nackContentSrc,null);
 					doSend(nackMsgSrc, srcGrp[0]); // send to original sender (might not be in group)
 				} else {
