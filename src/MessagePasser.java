@@ -4,8 +4,10 @@
  */
 
 /*
- * TODO: figure out what seq nums to nack - iterate holdback
- * 
+ * TODO: Figure out what seq nums to nack - iterate holdback
+ * 		 Parsing
+ * 		 Thread to send pulse check
+ * 		 
  */
 
 import java.io.EOFException;
@@ -23,6 +25,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -30,17 +33,19 @@ import java.util.Map;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 
-
 public class MessagePasser {
-	
-	private LinkedList<Message> delaySendQueue = new LinkedList<Message>(); //store the delayed send msg
-	private LinkedList<Message> delayRecvQueue = new LinkedList<Message>(); //store the delayed recv msg
-	private LinkedList<Message> recvQueue = new LinkedList<Message>(); //store all the received msg from all receive sockets
+
+	// store the delayed send msg
+	private LinkedList<Message> delaySendQueue = new LinkedList<Message>(); 
+	// store the delayed recv msg
+	private LinkedList<Message> delayRecvQueue = new LinkedList<Message>(); 
+	// store all the received msg from all receive sockets
+	private LinkedList<Message> recvQueue = new LinkedList<Message>(); 
 	private HashMap<String, ObjectOutputStream> outputStreamMap = new HashMap<String, ObjectOutputStream>();
 	private Map<SocketInfo, Socket> sockets = new HashMap<SocketInfo, Socket>();
-	private Map<String[],List<Message>> holdBackMap = new HashMap<String[],List<Message>>();
-	private Map<NackItem,Message> allMsg = new HashMap<NackItem,Message>();
-	
+	private Map<String[], List<Message>> holdBackMap = new HashMap<String[], List<Message>>();
+	private Map<NackItem, Message> allMsg = new HashMap<NackItem, Message>();
+
 	private String configFilename;
 
 	private String localName;
@@ -49,33 +54,33 @@ public class MessagePasser {
 	private SocketInfo hostSocketInfo;
 	private Config config;
 	private static int currSeqNum;
-	
+
 	private ClockService clockSer;
-	
-	private Map<String[], Integer> seqNums = new HashMap<String[], Integer>(); // map of SEEN seq Nums
-	private Map<String[], Integer> lateSeqNums = new HashMap<String[], Integer>(); // map of SEEN late seq Nums
+	// map of SEEN seqNums
+	private Map<String[], Integer> seqNums = new HashMap<String[], Integer>(); 
 
 	private enum RuleType {
-		SEND,
-		RECEIVE,
+		SEND, RECEIVE,
 	}
+
 	/*
 	 * sub-class for listen threads
 	 */
-	
+
 	public class startListen extends Thread {
 
 		public startListen() {
 
 		}
+
 		public void run() {
 			System.out.println("Running");
 			try {
-				while(true) {
-					Socket sock = hostListenSocket.accept();	
-					new ListenThread(sock).start();		
+				while (true) {
+					Socket sock = hostListenSocket.accept();
+					new ListenThread(sock).start();
 				}
-			}catch(IOException e) {
+			} catch (IOException e) {
 				Thread.currentThread().interrupt();
 			}
 		}
@@ -102,9 +107,9 @@ public class MessagePasser {
 						getNACK(msg);
 					} else {
 						if (msg.getKind().equalsIgnoreCase("NACK REPLY")) {
-							msg = (TimeStampedMessage)msg.getData();
-						} 
-					
+							msg = (TimeStampedMessage) msg.getData();
+						}
+
 						// msg.dumpMsg();
 						parseConfig();
 						Rule rule = null;
@@ -113,7 +118,6 @@ public class MessagePasser {
 								synchronized (delayRecvQueue) {
 									while (!delayRecvQueue.isEmpty()) {
 										checkAdd(delayRecvQueue.pollLast());
-										// recvQueue.add(delayRecvQueue.pollLast());
 									}
 								}
 								continue;
@@ -122,13 +126,10 @@ public class MessagePasser {
 								synchronized (recvQueue) {
 									checkAdd(msg);
 									checkAdd(msg.makeCopy());
-									// recvQueue.add(msg);
-									// recvQueue.add(msg.makeCopy());
 
 									synchronized (delayRecvQueue) {
 										while (!delayRecvQueue.isEmpty()) {
 											checkAdd(delayRecvQueue.pollLast());
-											// recvQueue.add(delayRecvQueue.pollLast());
 										}
 									}
 								}
@@ -142,11 +143,9 @@ public class MessagePasser {
 						} else {
 							synchronized (recvQueue) {
 								addToRecvQueue(recvQueue, msg);
-								// recvQueue.add(msg);
 								synchronized (delayRecvQueue) {
 									while (!delayRecvQueue.isEmpty()) {
 										checkAdd(delayRecvQueue.pollLast());
-										// recvQueue.add(delayRecvQueue.pollLast());
 									}
 								}
 							}
@@ -157,34 +156,36 @@ public class MessagePasser {
 			} catch (EOFException e2) {
 				System.out.println("A peer disconnected");
 				for (Map.Entry<SocketInfo, Socket> entry : sockets.entrySet()) {
-				    if(this.LisSock.getRemoteSocketAddress().equals(entry.getValue().getLocalSocketAddress())) {
-				    	System.out.println("Lost connection to " + entry.getKey().getName());
-				    	try {
-							ObjectOutputStream out = outputStreamMap.get(entry.getKey().getName());
-						   	outputStreamMap.remove(entry.getKey().getName());
+					if (this.LisSock.getRemoteSocketAddress().equals(
+							entry.getValue().getLocalSocketAddress())) {
+						System.out.println("Lost connection to "
+								+ entry.getKey().getName());
+						try {
+							ObjectOutputStream out = outputStreamMap.get(entry
+									.getKey().getName());
+							outputStreamMap.remove(entry.getKey().getName());
 							out.close();
-	
-						   	sockets.remove(entry.getKey());
+
+							sockets.remove(entry.getKey());
 							entry.getValue().close();
 						} catch (IOException e) {
-							//  Auto-generated catch block
+							// Auto-generated catch block
 							e.printStackTrace();
 						}
-				    	break ;
-				    }
+						break;
+					}
 				}
-				
+
 			} catch (IOException e1) {
-				//  Auto-generated catch block
+				// Auto-generated catch block
 				e1.printStackTrace();
 			} catch (ClassNotFoundException e) {
-				//  Auto-generated catch block
+				// Auto-generated catch block
 				e.printStackTrace();
 			}
-		
+
 		}
 
-		
 	}
 
 	public MessagePasser(String configuration_filename, String local_name) {
@@ -194,210 +195,207 @@ public class MessagePasser {
 		try {
 			parseConfig();
 		} catch (FileNotFoundException e) {
-			//  Auto-generated catch block
+			// Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		/* Now, using localName get *this* MessagePasser's SocketInfo and
-		 * setup the listening socket and all other sockets to other hosts.
+
+		/*
+		 * Now, using localName get *this* MessagePasser's SocketInfo and setup
+		 * the listening socket and all other sockets to other hosts.
 		 * 
-		 * We can optionally, save this info in hostSocket and hostSocketInfo
-		 * to avoid multiple lookups into the 'sockets' Map.
+		 * We can optionally, save this info in hostSocket and hostSocketInfo to
+		 * avoid multiple lookups into the 'sockets' Map.
 		 */
-		
-		
+
 		/* for clockService */
 		if (this.config.isLogical == true) {
 			this.clockSer = new LogicalClockService(new TimeStamp());
 		} else {
 			this.clockSer = new VectorClockService(new TimeStamp());
 		}
-		
-		if(!this.config.isLogical) {
-			HashMap<String, Integer> map = this.clockSer.getTs().getVectorClock();
-			for(SocketInfo e : this.config.configuration) {
+
+		if (!this.config.isLogical) {
+			HashMap<String, Integer> map = this.clockSer.getTs()
+					.getVectorClock();
+			for (SocketInfo e : this.config.configuration) {
 				map.put(e.getName(), 0);
 			}
 		}
-		
+
 		/* */
 		hostSocketInfo = config.getConfigSockInfo(localName);
-		if(hostSocketInfo == null) {
+		if (hostSocketInfo == null) {
 			/*** ERROR ***/
 			System.out.println("The local name is not correct.");
 			System.exit(0);
-		}
-		else {
+		} else {
 			/* Set up socket */
 			System.out.println("For this host: " + hostSocketInfo.toString());
 			try {
-				hostListenSocket = new ServerSocket(hostSocketInfo.getPort(), 10, 
-						                     InetAddress.getByName(hostSocketInfo.getIp()));
+				hostListenSocket = new ServerSocket(hostSocketInfo.getPort(),
+						10, InetAddress.getByName(hostSocketInfo.getIp()));
 			} catch (IOException e) {
 				/*** ERROR ***/
-				System.out.println("Cannot start listen on socket. "+ e.toString());
+				System.out.println("Cannot start listen on socket. "
+						+ e.toString());
 				System.exit(0);
 			}
-			/*start the listen thread */
+			/* start the listen thread */
 			new startListen().start();
 
 		}
 	}
-	
+
 	public void send(Message message) {
-		/* Re-parse the config.
-		 * Check message against sendRules.
-		 * Finally, send the message using sockets.
+		/*
+		 * Re-parse the config. Check message against sendRules. Finally, send
+		 * the message using sockets.
 		 */
 		/* update the timestamp */
 		this.clockSer.addTS(this.localName);
-		((TimeStampedMessage)message).setMsgTS(this.clockSer.getTs().makeCopy());
-System.out.println("TS add by 1");
+		((TimeStampedMessage) message).setMsgTS(this.clockSer.getTs()
+				.makeCopy());
+		System.out.println("TS add by 1");
 
 		try {
 			parseConfig();
 		} catch (FileNotFoundException e) {
-			//  Auto-generated catch block
+			// Auto-generated catch block
 			e.printStackTrace();
 		}
 		message.set_source(localName);
 		message.set_seqNum(currSeqNum++);
-				
+
 		Rule rule = null;
-		if((rule = matchRule(message, RuleType.SEND)) != null) {
-			if(rule.getAction().equals("drop")) {
-				return ;
-			}
-			else if(rule.getAction().equals("duplicate")) {
+		if ((rule = matchRule(message, RuleType.SEND)) != null) {
+			if (rule.getAction().equals("drop")) {
+				return;
+			} else if (rule.getAction().equals("duplicate")) {
 				Message dupMsg = message.makeCopy();
 				dupMsg.set_duplicate(true);
-				
-				
+
 				/* Send 'message' and 'dupMsg' */
 				checkSend(message);
-				/* update the timestamp */
-				//this.clockSer.addTS(this.localName);
-				((TimeStampedMessage)dupMsg).setMsgTS(this.clockSer.getTs().makeCopy());
-				//System.out.println("TS add by 1");
+				((TimeStampedMessage) dupMsg).setMsgTS(this.clockSer.getTs()
+						.makeCopy());
 				checkSend(dupMsg);
-				
-				/* We need to send delayed messages after new message.
-				 * This was clarified in Live session by Professor.
+
+				/*
+				 * We need to send delayed messages after new message. This was
+				 * clarified in Live session by Professor.
 				 */
-				for(Message m : delaySendQueue) {
+				for (Message m : delaySendQueue) {
 					checkSend(m);
 				}
 				delaySendQueue.clear();
 
-				
-			}
-			else if(rule.getAction().equals("delay")) {
+			} else if (rule.getAction().equals("delay")) {
 				delaySendQueue.add(message);
-			}
-			else {
+			} else {
 				System.out.println("We get a wierd message here!");
 			}
-		}
-		else {
+		} else {
 			checkSend(message);
-			
-			/* We need to send delayed messages after new message.
-			 * This was clarified in Live session by Professor.
+
+			/*
+			 * We need to send delayed messages after new message. This was
+			 * clarified in Live session by Professor.
 			 */
-			for(Message m : delaySendQueue) {
+			for (Message m : delaySendQueue) {
 				checkSend(m);
 			}
 			delaySendQueue.clear();
 		}
-		
+
 	}
-	
-	private void checkSend(Message message){
+
+	private void checkSend(Message message) {
 		// check if multicast
-		if(config.getGroup(message.getDest()) != null){ // multicast message
+		if (config.getGroup(message.getDest()) != null) { // multicast message
 			Group sendGroup = config.getGroup(message.getDest());
-			String srcGrp[] = {localName,sendGroup.getGroupName()};
+			String srcGrp[] = { localName, sendGroup.getGroupName() };
+			updateSequenceNumber(srcGrp); // on send, should update first
 			int sNum = seqNums.get(srcGrp);
-			seqNums.put(srcGrp, sNum + 1);
 			// change to update function
-			NackItem ni = new NackItem(srcGrp,sNum);
-			allMsg.put(ni,message);
-			((TimeStampedMessage)message).setGrpSeqNum(sNum);
-			for(String member : sendGroup.getMemberList() ){
+			NackItem ni = new NackItem(srcGrp, sNum);
+			allMsg.put(ni, message);
+			((TimeStampedMessage) message).setGrpSeqNum(sNum);
+			for (String member : sendGroup.getMemberList()) {
 				doSend(message, member);
 			}
-			
+
 		} else { // regular message
 			doSend(message, message.getDest());
 		}
 	}
-	
+
 	private void doSend(Message message, String dest) {
-		
-		TimeStampedMessage msg = (TimeStampedMessage)message;
-		
-		/* end fill*/
+
+		TimeStampedMessage msg = (TimeStampedMessage) message;
+
+		/* end fill */
 		Socket sendSock = null;
-		for(SocketInfo inf : sockets.keySet()) {
-			if(inf.getName().equals(dest)) {
+		for (SocketInfo inf : sockets.keySet()) {
+			if (inf.getName().equals(dest)) {
 				sendSock = sockets.get(inf);
 				break;
 			}
 		}
-		if(sendSock == null) {
+		if (sendSock == null) {
 			try {
 				SocketInfo inf = config.getConfigSockInfo(dest);
-				if(inf == null) {
+				if (inf == null) {
 					System.out.println("Cannot find config for " + dest);
-					return ;
+					return;
 				}
 				sendSock = new Socket(inf.getIp(), inf.getPort());
-			} catch(ConnectException e2) { 
+			} catch (ConnectException e2) {
 				System.out.println("Connection refused to " + dest);
-				return ;
-			}catch (IOException e) {
-				//  Auto-generated catch block
+				return;
+			} catch (IOException e) {
+				// Auto-generated catch block
 				e.printStackTrace();
-				return ;
+				return;
 			}
 			sockets.put(config.getConfigSockInfo(dest), sendSock);
 			try {
-				outputStreamMap.put(dest, new ObjectOutputStream(sendSock.getOutputStream()));
+				outputStreamMap.put(dest,
+						new ObjectOutputStream(sendSock.getOutputStream()));
 			} catch (IOException e) {
-				//  Auto-generated catch block
+				// Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
-		
+
 		ObjectOutputStream out;
 		try {
 			out = outputStreamMap.get(dest);
-			System.out.println("msgTS in doSend" + msg.getMsgTS().toString());			
+			System.out.println("msgTS in doSend" + msg.getMsgTS().toString());
 			out.writeObject(msg);
 			out.flush();
-			
+
 		} catch (SocketException e1) {
 			System.out.println("Peer " + dest + " is offline. Cannot send");
-			
+
 		} catch (IOException e) {
-			//  Auto-generated catch block
+			// Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
-	
+
 	public Message receive() {
-		/* Re-parse the config.
-		 * Receive the message using sockets.
-		 * Finally, check message against receiveRules.
+		/*
+		 * Re-parse the config. Receive the message using sockets. Finally,
+		 * check message against receiveRules.
 		 */
-		
-		synchronized(recvQueue) {
-			if(!recvQueue.isEmpty()) {
+
+		synchronized (recvQueue) {
+			if (!recvQueue.isEmpty()) {
 				Message popMsg = recvQueue.remove();
 				/* add ClockService */
-				TimeStampedMessage msg = (TimeStampedMessage)popMsg;
-//System.out.println("new Debug sentence");
-//msg.dumpMsg();
+				TimeStampedMessage msg = (TimeStampedMessage) popMsg;
+				// System.out.println("new Debug sentence");
+				// msg.dumpMsg();
 				this.clockSer.updateTS(msg.getMsgTS());
 				this.clockSer.addTS(this.localName);
 				/* */
@@ -405,139 +403,138 @@ System.out.println("TS add by 1");
 				return popMsg;
 			}
 		}
-		
+
 		return null;
 	}
+
 	public Message receiveLogger() {
-		/* Re-parse the config.
-		 * Receive the message using sockets.
-		 * Finally, check message against receiveRules.
+		/*
+		 * Re-parse the config. Receive the message using sockets. Finally,
+		 * check message against receiveRules.
 		 */
-		
-		synchronized(recvQueue) {
-			if(!recvQueue.isEmpty()) {
+
+		synchronized (recvQueue) {
+			if (!recvQueue.isEmpty()) {
 				Message popMsg = recvQueue.remove();
 				/* add ClockService */
-				TimeStampedMessage msg = (TimeStampedMessage)popMsg;
-//System.out.println("new Debug sentence");
-//msg.dumpMsg();
-//				this.clockSer.updateTS(msg.getMsgTS());
-//				this.clockSer.addTS(this.localName);
+				TimeStampedMessage msg = (TimeStampedMessage) popMsg;
+				// System.out.println("new Debug sentence");
+				// msg.dumpMsg();
+				// this.clockSer.updateTS(msg.getMsgTS());
+				// this.clockSer.addTS(this.localName);
 				/* */
 
 				return popMsg;
 			}
 		}
-		
+
 		return null;
 	}
-	
+
 	/*
-	public void logEvent(String msg, TimeStamp ts)
-	{
-		TimeStampedMessage newTsMsg;
-		try {
-			parseConfig();
-		} catch (FileNotFoundException e) {
-			System.out.println("[LOG_EVENT]: reading config file failed, continuing with existing config");
-		}
-System.out.println("TS entered into logEvent" + ts.toString());
-		newTsMsg = new TimeStampedMessage(loggerName, "log", msg, ts);
-		this.send(newTsMsg);
-	}
-	*/
+	 * public void logEvent(String msg, TimeStamp ts) { TimeStampedMessage
+	 * newTsMsg; try { parseConfig(); } catch (FileNotFoundException e) {
+	 * System.out.println(
+	 * "[LOG_EVENT]: reading config file failed, continuing with existing config"
+	 * ); } System.out.println("TS entered into logEvent" + ts.toString());
+	 * newTsMsg = new TimeStampedMessage(loggerName, "log", msg, ts);
+	 * this.send(newTsMsg); }
+	 */
 	public Rule matchRule(Message message, RuleType type) {
 		List<Rule> rules = null;
-		
-		if(type == RuleType.SEND) {
+
+		if (type == RuleType.SEND) {
 			rules = config.getSendRules();
-		}
-		else {
+		} else {
 			rules = config.getReceiveRules();
 		}
-		
-		if(rules == null) {
+
+		if (rules == null) {
 			return null;
 		}
-		
-		for(Rule r : rules) {
-			if(!r.getSrc().isEmpty()) {
-				if(!message.getSrc().equals(r.getSrc())) {
+
+		for (Rule r : rules) {
+			if (!r.getSrc().isEmpty()) {
+				if (!message.getSrc().equals(r.getSrc())) {
 					continue;
 				}
 			}
-			
-			if(!r.getDest().isEmpty()) {
-				if(!message.getDest().equals(r.getDest())) {
+
+			if (!r.getDest().isEmpty()) {
+				if (!message.getDest().equals(r.getDest())) {
 					continue;
 				}
 			}
-			
-			if(!r.getKind().isEmpty()) {
-				if(!message.getKind().equals(r.getKind())) {
+
+			if (!r.getKind().isEmpty()) {
+				if (!message.getKind().equals(r.getKind())) {
 					continue;
 				}
 
 			}
-			
-			if(r.getSeqNum() != -1) {
-				if(message.getSeqNum() != r.getSeqNum()) {
+
+			if (r.getSeqNum() != -1) {
+				if (message.getSeqNum() != r.getSeqNum()) {
 					continue;
 				}
 			}
-			
-			if(!r.getDuplicate().isEmpty()) {
-				if(!(message.isDuplicate() == true && r.getDuplicate().equals("true") || 
-						message.isDuplicate() == false && r.getDuplicate().equals("false"))) {
+
+			if (!r.getDuplicate().isEmpty()) {
+				if (!(message.isDuplicate() == true
+						&& r.getDuplicate().equals("true") || message
+						.isDuplicate() == false
+						&& r.getDuplicate().equals("false"))) {
 					continue;
 				}
 			}
-			
+
 			return r;
 		}
 		return null;
 	}
-	
+
 	private void parseConfig() throws FileNotFoundException {
-	    InputStream input = new FileInputStream(new File(configFilename));
-        Constructor constructor = new Constructor(Config.class);
-        SocketInfo mySocketInfo;
-	    Yaml yaml = new Yaml(constructor);
-	    
-	    /* SnakeYAML will parse and populate the Config object for us */
-	    config = (Config) yaml.load(input);
-	    
-	    /* XXX: Assigning config.isLogical based on 
-	     * SocketInfo data is a big hack. I could not make it work 
-	     * with normal yaml.load, hence had to go with this hack. 
-	     */
-	    mySocketInfo = config.getConfigSockInfo(localName);
-	    if(mySocketInfo == null) {
-	    	/*** ERROR ***/
-	    	System.out.println("The local name is not correct.");
-	    	System.exit(0);
-	    }
-	    
-	    if (mySocketInfo.getClockType().equals("logical")) {
-	    	config.isLogical = true;
-	    } else {
-	    	config.isLogical = false;
-	    }
+		InputStream input = new FileInputStream(new File(configFilename));
+		Constructor constructor = new Constructor(Config.class);
+		SocketInfo mySocketInfo;
+		Yaml yaml = new Yaml(constructor);
+
+		/* SnakeYAML will parse and populate the Config object for us */
+		config = (Config) yaml.load(input);
+
+		/*
+		 * XXX: Assigning config.isLogical based on SocketInfo data is a big
+		 * hack. I could not make it work with normal yaml.load, hence had to go
+		 * with this hack.
+		 */
+		mySocketInfo = config.getConfigSockInfo(localName);
+		if (mySocketInfo == null) {
+			/*** ERROR ***/
+			System.out.println("The local name is not correct.");
+			System.exit(0);
+		}
+
+		if (mySocketInfo.getClockType().equals("logical")) {
+			config.isLogical = true;
+		} else {
+			config.isLogical = false;
+		}
 	}
 
 	public void closeAllSockets() throws IOException {
-		//  Auto-generated method stub
+		// Auto-generated method stub
 		hostListenSocket.close();
-		
-		/*Close all other sockets in the sockets map*/
+
+		/* Close all other sockets in the sockets map */
 		for (Map.Entry<SocketInfo, Socket> entry : sockets.entrySet()) {
-		    entry.getValue().close();
+			entry.getValue().close();
 		}
-		for(Map.Entry<String, ObjectOutputStream> entry : outputStreamMap.entrySet()) {
+		for (Map.Entry<String, ObjectOutputStream> entry : outputStreamMap
+				.entrySet()) {
 			entry.getValue().close();
 		}
 	}
-	
+
 	public ClockService getClockSer() {
 		return clockSer;
 	}
@@ -545,7 +542,7 @@ System.out.println("TS entered into logEvent" + ts.toString());
 	public void setClockSer(ClockService clockSer) {
 		this.clockSer = clockSer;
 	}
-	
+
 	public String getLocalName() {
 		return localName;
 	}
@@ -553,161 +550,177 @@ System.out.println("TS entered into logEvent" + ts.toString());
 	public void setLocalName(String localName) {
 		this.localName = localName;
 	}
-	
+
 	public void cleanUp() {
 		this.delayRecvQueue.clear();
 		this.delayRecvQueue.clear();
 		this.recvQueue.clear();
 		this.currSeqNum = 0;
 		this.clockSer.cleanUp();
-		
-		if(!this.config.isLogical) {
-			HashMap<String, Integer> map = this.clockSer.getTs().getVectorClock();
-			for(SocketInfo e : this.config.configuration) {
+
+		if (!this.config.isLogical) {
+			HashMap<String, Integer> map = this.clockSer.getTs()
+					.getVectorClock();
+			for (SocketInfo e : this.config.configuration) {
 				map.put(e.getName(), 0);
 			}
 		}
 	}
-	
-	public void checkAdd(Message msg){
-		
-		if(config.getGroup(msg.getDest()) != null){ // multicast message
-			
-			String[] srcGrp = {msg.getSrc(),msg.getDest()};
-			int getNum = ((TimeStampedMessage)msg).getGrpSeqNum();
+
+	public void checkAdd(Message msg) {
+
+		if (config.getGroup(msg.getDest()) != null) { // multicast message
+
+			String[] srcGrp = { msg.getSrc(), msg.getDest() };
+			int getNum = ((TimeStampedMessage) msg).getGrpSeqNum();
 			NackItem ni = new NackItem(srcGrp, getNum);
 			allMsg.put(ni, msg);
-	
+
 			int seenNum = seqNums.get(srcGrp);
-			
-			if(seenNum <= getNum){ // duplicate message. Ignore
+
+			if (seenNum <= getNum) { // duplicate message. Ignore
 				return;
-			} else if((seenNum + 1) == getNum){ //in order. add to recvQueue
+			} else if ((seenNum + 1) == getNum) { // in order. add to recvQueue
 				updateSequenceNumber(srcGrp);
-				addToRecvQueue(recvQueue,msg);
+				addToRecvQueue(recvQueue, msg);
 				updateHoldback(msg);
 			} else {
 				addToHoldBack(msg);
-				// TODO: add way to get all missing numbers - iterate holdback
-				lateSeqNums.put(srcGrp, getNum);
 				sendNACK();
 			}
 		} else { // regular message
-			addToRecvQueue(recvQueue,msg);
+			addToRecvQueue(recvQueue, msg);
 		}
 	}
-	
-	public void addToHoldBack(Message msg){
-		String[] srcGrp = {msg.getSrc(),msg.getDest()};
+
+	public void addToHoldBack(Message msg) {
+		String[] srcGrp = { msg.getSrc(), msg.getDest() };
 		List<Message> messagesInGroup;
-		if(holdBackMap.containsKey(srcGrp)){
+		if (holdBackMap.containsKey(srcGrp)) {
 			messagesInGroup = holdBackMap.get(srcGrp);
 			// insert in order
 			int i;
-			for(i = 0; i < messagesInGroup.size(); i++){
-				if(((TimeStampedMessage)msg).getGrpSeqNum() < ((TimeStampedMessage)messagesInGroup.get(i)).getGrpSeqNum()){
+			for (i = 0; i < messagesInGroup.size(); i++) {
+				if (((TimeStampedMessage) msg).getGrpSeqNum() < 
+						((TimeStampedMessage) messagesInGroup.get(i))
+						.getGrpSeqNum()) {
 					messagesInGroup.add(i, msg);
 					break;
 				}
-			} 
-			
-			if(i == messagesInGroup.size()){
+			}
+
+			if (i == messagesInGroup.size()) {
 				messagesInGroup.add(msg);
 			}
 		} else {
 			messagesInGroup = new ArrayList<Message>();
 			messagesInGroup.add(msg);
 		}
-		
+
 		holdBackMap.put(srcGrp, messagesInGroup);
-		
+
 		return;
 	}
-	
-	public void updateSequenceNumber(String[] srcGrp){
+
+	public void updateSequenceNumber(String[] srcGrp) {
 		int curr = seqNums.get(srcGrp);
 		seqNums.put(srcGrp, curr + 1);
 	}
-	
-	public void updateHoldback(Message msg){
-		String[] srcGrp = {msg.getSrc(),msg.getDest()};
-		if(holdBackMap.containsKey(srcGrp)){
+
+	public void updateHoldback(Message msg) {
+		String[] srcGrp = { msg.getSrc(), msg.getDest() };
+		if (holdBackMap.containsKey(srcGrp)) {
 			List<Message> messagesInGroup = holdBackMap.get(srcGrp);
-			while(!messagesInGroup.isEmpty() &&
-					(int)((TimeStampedMessage)messagesInGroup.get(0)).getGrpSeqNum() 
-					== (int)(seqNums.get(srcGrp) + 1)){
+			while (!messagesInGroup.isEmpty()
+					&& (int) ((TimeStampedMessage) messagesInGroup.get(0))
+							.getGrpSeqNum() == (int) (seqNums.get(srcGrp) + 1)) {
 				updateSequenceNumber(srcGrp);
-				addToRecvQueue(recvQueue,messagesInGroup.get(0));
+				addToRecvQueue(recvQueue, messagesInGroup.get(0));
 				messagesInGroup.remove(0);
 			}
 		}
 	}
-	
-	public void sendNACK(){
-		// send missing seq Nums
-		// send last seq Nums
-		// TODO: make sendNack iterate through holdback to figure out missing
-		
+
+	public void sendNACK() {
+
 		List<NackItem> nackContent = new ArrayList<NackItem>();
-		
-		for(Group g : config.getGroupList()){
-			for(String member : g.getMemberList()){
-				String[] srcGrp = {member,g.getGroupName()};
-				if(lateSeqNums.containsKey(srcGrp)){ // missing
-					List<NackItem> nackContentSrc = new ArrayList<NackItem>();
-					for(int i = seqNums.get(srcGrp) + 1; i < lateSeqNums.get(srcGrp); i++){
-						NackItem nack = new NackItem(srcGrp,i);
-						nackContent.add(nack);
-						nackContentSrc.add(nack);
+
+		for (Group g : config.getGroupList()) {
+			for (String member : g.getMemberList()) {
+				List<NackItem> nackContentSrc = new ArrayList<NackItem>();
+				String[] srcGrp = { member, g.getGroupName() };
+				
+				if (!holdBackMap.get(srcGrp).isEmpty()) { 
+					// something in holdback queue
+					List<Message> hbQueue = holdBackMap.get(srcGrp);
+					int seqNum = seqNums.get(srcGrp) + 1;
+					Iterator<Message> queueIt = hbQueue.iterator();
+					// Go through queue and populate missing msg NACKs
+					while (queueIt.hasNext()) {
+						Message curr = queueIt.next();
+						while (seqNum < ((TimeStampedMessage) curr)
+								.getGrpSeqNum()) {
+							NackItem nack = new NackItem(srcGrp, seqNum);
+							nackContent.add(nack);
+							nackContentSrc.add(nack);
+							seqNum++;
+						}
+						seqNum++;
 					}
-					
-					TimeStampedMessage nackMsgSrc = new TimeStampedMessage(srcGrp[0],"NACK",nackContentSrc,null);
-					doSend(nackMsgSrc, srcGrp[0]); // send to original sender (might not be in group)
-				} else {
-					NackItem nack = new NackItem(srcGrp,seqNums.get(srcGrp) + 1);
+				} else { // nothing in holdback queue, just NACK next
+					NackItem nack = new NackItem(srcGrp,
+							seqNums.get(srcGrp) + 1);
 					nackContent.add(nack);
+					nackContentSrc.add(nack);
 				}
+				// send to original sender (might not be in group)
+				TimeStampedMessage nackMsgSrc = new TimeStampedMessage(
+						srcGrp[0], "NACK", nackContentSrc, null);
+				doSend(nackMsgSrc, srcGrp[0]);
 			}
-			
-			TimeStampedMessage nackMsg = new TimeStampedMessage(g.getGroupName(),"NACK",nackContent,null);
+
+			TimeStampedMessage nackMsg = new TimeStampedMessage(
+					g.getGroupName(), "NACK", nackContent, null);
 			checkSend(nackMsg); // skips rules and TS setting
 		}
 	}
-	
-	public void getNACK(Message msg){
+
+	public void getNACK(Message msg) {
 		@SuppressWarnings("unchecked")
-		List<NackItem> nackContent = (List<NackItem>)msg.getData();
-		for(NackItem nack : nackContent){
-			if(allMsg.containsKey(nack)){ // if has message
-				Message nackReply = new TimeStampedMessage(msg.getSrc(), "NACK REPLY", allMsg.get(nack),null);
-				doSend(nackReply,nackReply.getDest());
+		List<NackItem> nackContent = (List<NackItem>) msg.getData();
+		for (NackItem nack : nackContent) {
+			if (allMsg.containsKey(nack)) { // if has message
+				Message nackReply = new TimeStampedMessage(msg.getSrc(),
+						"NACK REPLY", allMsg.get(nack), null);
+				doSend(nackReply, nackReply.getDest());
 			}
 		}
 	}
-	
+
 	public void addToRecvQueue(LinkedList<Message> recvQueue, Message msg) {
 		int i = 0, size = 0;
-		synchronized(recvQueue) {
+		synchronized (recvQueue) {
 			size = recvQueue.size();
-			for(;i < size;i ++) {
-				TimeStampedMessage tmp = (TimeStampedMessage)recvQueue.get(i);
-				if(tmp.getMsgTS().compare(((TimeStampedMessage)msg).getMsgTS()) != TimeStampRelation.greaterEqual) {
+			for (; i < size; i++) {
+				TimeStampedMessage tmp = (TimeStampedMessage) recvQueue.get(i);
+				if (tmp.getMsgTS().compare(
+						((TimeStampedMessage) msg).getMsgTS()) != TimeStampRelation.greaterEqual) {
 					break;
 				}
 			}
 			recvQueue.add(i, msg);
 		}
 	}
+
 	@Override
 	public String toString() {
 		return "MessagePasser [configFilename=" + configFilename
-				+ ", localName=" + localName + ", hostListenSocket=" + hostListenSocket
-				+ ", hostSocketInfo=" + hostSocketInfo + ", config=" + config
-				+ "]";
+				+ ", localName=" + localName + ", hostListenSocket="
+				+ hostListenSocket + ", hostSocketInfo=" + hostSocketInfo
+				+ ", config=" + config + "]";
 	}
-	
-	public boolean getIsLogical()
-	{
+
+	public boolean getIsLogical() {
 		return this.config.isLogical;
 	}
 
