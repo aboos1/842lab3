@@ -36,7 +36,7 @@ import org.yaml.snakeyaml.constructor.Constructor;
 public class MessagePasser {
 
 	// store the delayed send msg
-	private LinkedList<Message> delaySendQueue = new LinkedList<Message>(); 
+	private LinkedList<DelayedMessage> delaySendQueue = new LinkedList<DelayedMessage>(); 
 	// store the delayed recv msg
 	private LinkedList<Message> delayRecvQueue = new LinkedList<Message>(); 
 	// store all the received msg from all receive sockets
@@ -260,7 +260,32 @@ public class MessagePasser {
 		((TimeStampedMessage) message).setMsgTS(this.clockSer.getTs()
 				.makeCopy());
 		System.out.println("TS add by 1");
+		checkSend(message);
+		
+		
+	} 
 
+	private void checkSend(Message message) {
+		// check if multicast
+		if (config.getGroup(message.getDest()) != null) { // multicast message
+			Group sendGroup = config.getGroup(message.getDest());
+			String srcGrp[] = { localName, sendGroup.getGroupName() };
+			updateSequenceNumber(srcGrp); // on send, should update first
+			int sNum = seqNums.get(srcGrp);
+			// change to update function
+			NackItem ni = new NackItem(srcGrp, sNum);
+			allMsg.put(ni, message);
+			((TimeStampedMessage) message).setGrpSeqNum(sNum);
+			for (String member : sendGroup.getMemberList()) {
+				applyRulesSend(message, member);
+			}
+
+		} else { // regular message
+			applyRulesSend(message, message.getDest());
+		}
+	}
+	
+	private void applyRulesSend(Message message, String dest){
 		try {
 			parseConfig();
 		} catch (FileNotFoundException e) {
@@ -282,61 +307,34 @@ public class MessagePasser {
 				checkSend(message);
 				((TimeStampedMessage) dupMsg).setMsgTS(this.clockSer.getTs()
 						.makeCopy());
-				checkSend(dupMsg);
+				doSend(dupMsg,dest);
 
 				/*
 				 * We need to send delayed messages after new message. This was
 				 * clarified in Live session by Professor.
 				 */
-				for (Message m : delaySendQueue) {
-					checkSend(m);
+				for (DelayedMessage dm : delaySendQueue) {
+					doSend(dm.getMessage(),dm.getDest());
 				}
 				delaySendQueue.clear();
 
 			} else if (rule.getAction().equals("delay")) {
-				delaySendQueue.add(message);
+				DelayedMessage dm = new DelayedMessage(message,dest);
+				delaySendQueue.add(dm);
 			} else {
 				System.out.println("We get a wierd message here!");
 			}
 		} else {
-			checkSend(message);
+			doSend(message,dest);
 
 			/*
 			 * We need to send delayed messages after new message. This was
 			 * clarified in Live session by Professor.
 			 */
-			for (Message m : delaySendQueue) {
-				checkSend(m);
+			for (DelayedMessage dm : delaySendQueue) {
+				doSend(dm.getMessage(),dm.getDest());
 			}
 			delaySendQueue.clear();
-		}
-<<<<<<< HEAD
-		
-	} 
-	
-	private void checkSend(Message message){
-=======
-
-	}
-
-	private void checkSend(Message message) {
->>>>>>> 71b85561c53feb5679cb3ad2cc363a07032ad716
-		// check if multicast
-		if (config.getGroup(message.getDest()) != null) { // multicast message
-			Group sendGroup = config.getGroup(message.getDest());
-			String srcGrp[] = { localName, sendGroup.getGroupName() };
-			updateSequenceNumber(srcGrp); // on send, should update first
-			int sNum = seqNums.get(srcGrp);
-			// change to update function
-			NackItem ni = new NackItem(srcGrp, sNum);
-			allMsg.put(ni, message);
-			((TimeStampedMessage) message).setGrpSeqNum(sNum);
-			for (String member : sendGroup.getMemberList()) {
-				doSend(message, member);
-			}
-
-		} else { // regular message
-			doSend(message, message.getDest());
 		}
 	}
 
@@ -641,7 +639,12 @@ public class MessagePasser {
 	}
 
 	public void updateSequenceNumber(String[] srcGrp) {
-		int curr = seqNums.get(srcGrp);
+		int curr;
+		if(seqNums.containsKey(srcGrp)){
+			curr = seqNums.get(srcGrp);
+		} else{
+			curr = 0;
+		}
 		seqNums.put(srcGrp, curr + 1);
 	}
 

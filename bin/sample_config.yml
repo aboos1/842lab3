@@ -50,10 +50,10 @@ receiveRules :
 groupList : 
     - groupName : Group1
       members :
-        - name : p1
-        - name : p2
+        - membername : p1
+        - membername : p2
 
     - groupName : Group2
       members : 
-        - name : p2
-        - name : p3
+        - membername : p2
+        - membername : p3
