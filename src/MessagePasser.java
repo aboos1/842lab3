@@ -85,7 +85,17 @@ public class MessagePasser {
 			}
 		}
 	}
-
+	
+	public class sendPeriodNACK extends Thread {
+		public sendPeriodNACK() {}
+		
+		public void run() {
+			while(true) {			
+				sendNACK();
+				Thread.currentThread().sleep(5000);
+			}
+		}
+	}
 	public class ListenThread extends Thread {
 		private Socket LisSock = null;
 
@@ -244,9 +254,22 @@ public class MessagePasser {
 						+ e.toString());
 				System.exit(0);
 			}
+			/*need to initiate the seqNums map */
+			for(Group g : this.config.getGroupList()) {
+				String[] tmp = {this.localName, g.getGroupName()};
+				this.seqNums.put(tmp, 0);
+				if(g.getMemberList().contains(this.localName)) {
+					for(SocketInfo s : this.config.configuration) {
+						String[] tmpArray = {s.getName(), g.getGroupName()};
+						this.seqNums.put(tmpArray, 0);
+					}
+				}
+			}
+			
 			/* start the listen thread */
 			new startListen().start();
-
+			/*start the thread sending periodicall NACK */
+			new sendPeriodNACK().start();
 		}
 	}
 
@@ -664,45 +687,45 @@ public class MessagePasser {
 
 	public void sendNACK() {
 
-		List<NackItem> nackContent = new ArrayList<NackItem>();
-
 		for (Group g : config.getGroupList()) {
-			for (String member : g.getMemberList()) {
-				List<NackItem> nackContentSrc = new ArrayList<NackItem>();
-				String[] srcGrp = { member, g.getGroupName() };
+			if (g.getMemberList().contains(localName)) {
+				List<NackItem> nackContent = new ArrayList<NackItem>();
+				for(SocketInfo e : config.configuration) {
+					List<NackItem> nackContentSrc = new ArrayList<NackItem>();
+					String[] srcGrp = { e.getName(), g.getGroupName() };
 				
-				if (!holdBackMap.get(srcGrp).isEmpty()) { 
-					// something in holdback queue
-					List<Message> hbQueue = holdBackMap.get(srcGrp);
-					int seqNum = seqNums.get(srcGrp) + 1;
-					Iterator<Message> queueIt = hbQueue.iterator();
-					// Go through queue and populate missing msg NACKs
-					while (queueIt.hasNext()) {
-						Message curr = queueIt.next();
-						while (seqNum < ((TimeStampedMessage) curr)
+					if (holdBackMap.get(srcGrp) != null && !holdBackMap.get(srcGrp).isEmpty()) { 
+						// something in holdback queue
+						List<Message> hbQueue = holdBackMap.get(srcGrp);
+						int seqNum = seqNums.get(srcGrp) + 1;
+						Iterator<Message> queueIt = hbQueue.iterator();
+						// Go through queue and populate missing msg NACKs
+						while (queueIt.hasNext()) {
+							Message curr = queueIt.next();
+							while (seqNum < ((TimeStampedMessage) curr)
 								.getGrpSeqNum()) {
-							NackItem nack = new NackItem(srcGrp, seqNum);
-							nackContent.add(nack);
-							nackContentSrc.add(nack);
+								NackItem nack = new NackItem(srcGrp, seqNum);
+								nackContent.add(nack);
+								nackContentSrc.add(nack);
+								seqNum++;
+							}
 							seqNum++;
 						}
-						seqNum++;
-					}
-				} else { // nothing in holdback queue, just NACK next
-					NackItem nack = new NackItem(srcGrp,
+					} else { // nothing in holdback queue, just NACK next
+						NackItem nack = new NackItem(srcGrp,
 							seqNums.get(srcGrp) + 1);
-					nackContent.add(nack);
-					nackContentSrc.add(nack);
-				}
-				// send to original sender (might not be in group)
-				TimeStampedMessage nackMsgSrc = new TimeStampedMessage(
+						nackContent.add(nack);
+						nackContentSrc.add(nack);
+					}
+					// send to original sender (might not be in group)
+					TimeStampedMessage nackMsgSrc = new TimeStampedMessage(
 						srcGrp[0], "NACK", nackContentSrc, null);
-				doSend(nackMsgSrc, srcGrp[0]);
+					doSend(nackMsgSrc, srcGrp[0]);
+				}
+				TimeStampedMessage nackMsg = new TimeStampedMessage(
+						g.getGroupName(), "NACK", nackContent, null);
+				checkSend(nackMsg); // skips rules and TS setting
 			}
-
-			TimeStampedMessage nackMsg = new TimeStampedMessage(
-					g.getGroupName(), "NACK", nackContent, null);
-			checkSend(nackMsg); // skips rules and TS setting
 		}
 	}
 

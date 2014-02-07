@@ -19,7 +19,7 @@ public class Logger implements Runnable {
 	 * send command: dest kind data
 	 * receive command: receive
 	 */
-	private MessagePasser msgPasser;
+	private MessagePasser msgPasser; 
 	HashMap<String, ArrayList<LogMessage>> eventMap = new HashMap<String, ArrayList<LogMessage>>();
 	private ArrayList<LogMessage> startMsgs = new ArrayList<LogMessage>();
 	boolean isLogical;
