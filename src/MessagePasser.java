@@ -43,7 +43,7 @@ public class MessagePasser {
 	private LinkedList<Message> recvQueue = new LinkedList<Message>(); 
 	private HashMap<String, ObjectOutputStream> outputStreamMap = new HashMap<String, ObjectOutputStream>();
 	private Map<SocketInfo, Socket> sockets = new HashMap<SocketInfo, Socket>();
-	private Map<String[], List<Message>> holdBackMap = new HashMap<String[], List<Message>>();
+	private Map<SrcGroup, List<Message>> holdBackMap = new HashMap<SrcGroup, List<Message>>();
 	private Map<NackItem, Message> allMsg = new HashMap<NackItem, Message>();
 
 	private String configFilename;
@@ -57,7 +57,7 @@ public class MessagePasser {
 
 	private ClockService clockSer;
 	// map of SEEN seqNums
-	private Map<String[], Integer> seqNums = new HashMap<String[], Integer>(); 
+	private Map<SrcGroup, Integer> seqNums = new HashMap<SrcGroup, Integer>(); 
 
 	private enum RuleType {
 		SEND, RECEIVE,
@@ -92,7 +92,12 @@ public class MessagePasser {
 		public void run() {
 			while(true) {			
 				sendNACK();
-				Thread.currentThread().sleep(5000);
+				try {
+					Thread.currentThread().sleep(5000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}
 		}
 	}
@@ -256,11 +261,11 @@ public class MessagePasser {
 			}
 			/*need to initiate the seqNums map */
 			for(Group g : this.config.getGroupList()) {
-				String[] tmp = {this.localName, g.getGroupName()};
+				SrcGroup tmp = new SrcGroup(this.localName, g.getGroupName());
 				this.seqNums.put(tmp, 0);
 				if(g.getMemberList().contains(this.localName)) {
 					for(SocketInfo s : this.config.configuration) {
-						String[] tmpArray = {s.getName(), g.getGroupName()};
+						SrcGroup tmpArray = new SrcGroup(s.getName(), g.getGroupName());
 						this.seqNums.put(tmpArray, 0);
 					}
 				}
@@ -268,11 +273,13 @@ public class MessagePasser {
 			
 			/* start the listen thread */
 			new startListen().start();
-			/*start the thread sending periodicall NACK */
-			new sendPeriodNACK().start();
+
 		}
 	}
-
+	public void startCheckingThread() {
+		/*start the thread sending periodicall NACK */
+		new sendPeriodNACK().start();
+	}
 	public void send(Message message) {
 		/*
 		 * Re-parse the config. Check message against sendRules. Finally, send
@@ -292,7 +299,7 @@ public class MessagePasser {
 		// check if multicast
 		if (config.getGroup(message.getDest()) != null) { // multicast message
 			Group sendGroup = config.getGroup(message.getDest());
-			String srcGrp[] = { localName, sendGroup.getGroupName() };
+			SrcGroup srcGrp = new SrcGroup(localName, sendGroup.getGroupName());
 			updateSequenceNumber(srcGrp); // on send, should update first
 			int sNum = seqNums.get(srcGrp);
 			// change to update function
@@ -610,7 +617,7 @@ public class MessagePasser {
 
 		if (config.getGroup(msg.getDest()) != null) { // multicast message
 
-			String[] srcGrp = { msg.getSrc(), msg.getDest() };
+			SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getDest());
 			int getNum = ((TimeStampedMessage) msg).getGrpSeqNum();
 			NackItem ni = new NackItem(srcGrp, getNum);
 			allMsg.put(ni, msg);
@@ -633,7 +640,7 @@ public class MessagePasser {
 	}
 
 	public void addToHoldBack(Message msg) {
-		String[] srcGrp = { msg.getSrc(), msg.getDest() };
+		SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getDest());
 		List<Message> messagesInGroup;
 		if (holdBackMap.containsKey(srcGrp)) {
 			messagesInGroup = holdBackMap.get(srcGrp);
@@ -661,7 +668,7 @@ public class MessagePasser {
 		return;
 	}
 
-	public void updateSequenceNumber(String[] srcGrp) {
+	public void updateSequenceNumber(SrcGroup srcGrp) {
 		int curr;
 		if(seqNums.containsKey(srcGrp)){
 			curr = seqNums.get(srcGrp);
@@ -672,7 +679,7 @@ public class MessagePasser {
 	}
 
 	public void updateHoldback(Message msg) {
-		String[] srcGrp = { msg.getSrc(), msg.getDest() };
+		SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getDest());
 		if (holdBackMap.containsKey(srcGrp)) {
 			List<Message> messagesInGroup = holdBackMap.get(srcGrp);
 			while (!messagesInGroup.isEmpty()
@@ -692,7 +699,7 @@ public class MessagePasser {
 				List<NackItem> nackContent = new ArrayList<NackItem>();
 				for(SocketInfo e : config.configuration) {
 					List<NackItem> nackContentSrc = new ArrayList<NackItem>();
-					String[] srcGrp = { e.getName(), g.getGroupName() };
+					SrcGroup srcGrp = new SrcGroup(e.getName(), g.getGroupName());
 				
 					if (holdBackMap.get(srcGrp) != null && !holdBackMap.get(srcGrp).isEmpty()) { 
 						// something in holdback queue
@@ -712,6 +719,13 @@ public class MessagePasser {
 							seqNum++;
 						}
 					} else { // nothing in holdback queue, just NACK next
+/*debug sentence */
+for(SrcGroup s : this.seqNums.keySet())
+	System.out.println(s.getSrc() + " " + s.getGroupName() + " " + this.seqNums.get(s));
+System.out.println("=========\n" + srcGrp.getSrc() + " " + srcGrp.getGroupName());
+if(seqNums.containsKey(srcGrp)) {
+	System.out.println("we find it");
+}
 						NackItem nack = new NackItem(srcGrp,
 							seqNums.get(srcGrp) + 1);
 						nackContent.add(nack);
@@ -719,8 +733,8 @@ public class MessagePasser {
 					}
 					// send to original sender (might not be in group)
 					TimeStampedMessage nackMsgSrc = new TimeStampedMessage(
-						srcGrp[0], "NACK", nackContentSrc, null);
-					doSend(nackMsgSrc, srcGrp[0]);
+						srcGrp.getSrc(), "NACK", nackContentSrc, null);
+					doSend(nackMsgSrc, srcGrp.getSrc());
 				}
 				TimeStampedMessage nackMsg = new TimeStampedMessage(
 						g.getGroupName(), "NACK", nackContent, null);

@@ -22,6 +22,8 @@ public abstract class Message implements Serializable {
 		this.duplicate = false;
 	}
 
+
+
 	// These settors are used by MessagePasser.send, not your app
 	public void set_source(String source) {
 		this.src = source;
@@ -52,6 +54,56 @@ public abstract class Message implements Serializable {
 	public String getSrc() {
 		return src;
 	}
+	
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((data == null) ? 0 : data.hashCode());
+		result = prime * result + ((dest == null) ? 0 : dest.hashCode());
+		result = prime * result + (duplicate ? 1231 : 1237);
+		result = prime * result + ((kind == null) ? 0 : kind.hashCode());
+		result = prime * result + seqNum;
+		result = prime * result + ((src == null) ? 0 : src.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Message other = (Message) obj;
+		if (data == null) {
+			if (other.data != null)
+				return false;
+		} else if (!data.equals(other.data))
+			return false;
+		if (dest == null) {
+			if (other.dest != null)
+				return false;
+		} else if (!dest.equals(other.dest))
+			return false;
+		if (duplicate != other.duplicate)
+			return false;
+		if (kind == null) {
+			if (other.kind != null)
+				return false;
+		} else if (!kind.equals(other.kind))
+			return false;
+		if (seqNum != other.seqNum)
+			return false;
+		if (src == null) {
+			if (other.src != null)
+				return false;
+		} else if (!src.equals(other.src))
+			return false;
+		return true;
+	}
+	
 	@Override
 	public String toString() {
 		return "Message [src=" + src + ", dest=" + dest + ", kind=" + kind + ", data=" + data

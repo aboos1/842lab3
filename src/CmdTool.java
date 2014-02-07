@@ -59,6 +59,10 @@ public class CmdTool {
             	System.out.println("we clean up the messagePasser and ClockService");
             	this.msgPasser.cleanUp();
             }
+            else if(cmdInput.equals("startthread")) {
+            	System.out.println("Start a periodically checking thread");
+            	this.msgPasser.startCheckingThread();
+            }
             else if (!cmdInput.equals(null) && !cmdInput.equals("\n")) {
             	
             	String[] array = cmdInput.split(" ");
