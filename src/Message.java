@@ -35,7 +35,9 @@ public abstract class Message implements Serializable {
 		this.duplicate = dupe;
 	}
 	// other accessors, toString, etc as needed
-	
+	public void setDest(String destination) {
+		this.dest = destination;
+	}
 	public String getDest() {
 		return dest;
 	}

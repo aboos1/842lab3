@@ -20,8 +20,9 @@ sendRules :
       dest : p4
       kind : HTTP_REPLY
     
-    - action : drop  
-      dest : p4
+    - action : drop
+      src : p1  
+      dest : p3
       kind : Lookup
 
     - action : duplicate

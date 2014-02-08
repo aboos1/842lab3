@@ -157,8 +157,9 @@ public class MessagePasser {
 								System.out.println("We receive a wierd msg!");
 							}
 						} else {
+System.out.println("Receive a common Message!");
 							synchronized (recvQueue) {
-								addToRecvQueue(recvQueue, msg);
+								checkAdd(msg);
 								synchronized (delayRecvQueue) {
 									while (!delayRecvQueue.isEmpty()) {
 										checkAdd(delayRecvQueue.pollLast());
@@ -308,6 +309,7 @@ public class MessagePasser {
 			allMsg.put(ni, message);
 			((TimeStampedMessage) message).setGrpSeqNum(sNum);
 			for (String member : sendGroup.getMemberList()) {
+				message.setDest(member);
 				applyRulesSend(message, member);
 			}
 
@@ -736,10 +738,12 @@ if(seqNums.containsKey(srcGrp)) {
 					// send to original sender (might not be in group)
 					TimeStampedMessage nackMsgSrc = new TimeStampedMessage(
 						srcGrp.getSrc(), "NACK", nackContentSrc, null);
+					nackMsgSrc.set_source(localName);
 					doSend(nackMsgSrc, srcGrp.getSrc());
 				}
 				TimeStampedMessage nackMsg = new TimeStampedMessage(
 						g.getGroupName(), "NACK", nackContent, null);
+				nackMsg.set_source(localName);
 				for (String member : g.getMemberList()) {
 					applyRulesSend(nackMsg, member);
 				}
@@ -751,6 +755,16 @@ if(seqNums.containsKey(srcGrp)) {
 	public void getNACK(Message msg) {
 		@SuppressWarnings("unchecked")
 		List<NackItem> nackContent = (List<NackItem>) msg.getData();
+/*Debug: */
+System.out.println("nack items get from NACK");
+for(NackItem m : nackContent) {
+	System.out.println(m.toString());
+}
+System.out.println("==================");
+for(NackItem n : this.allMsg.keySet()) {
+	System.out.println(n.toString() + " * ");
+}
+
 		for (NackItem nack : nackContent) {
 			if (allMsg.containsKey(nack)) { // if has message
 System.out.println("WHy we get a reply?!?!");
