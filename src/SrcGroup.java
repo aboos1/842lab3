@@ -1,8 +1,10 @@
-
-public class SrcGroup {
-
+import java.io.Serializable;
 
 
+public class SrcGroup implements Serializable {
+
+
+	private static final long serialVersionUID = 1L;
 	private String src;
 	private String groupName;
 	

@@ -1,8 +1,13 @@
+import java.io.Serializable;
 
-public class NackItem {
+
+public class NackItem implements Serializable {
+	
+	private static final long serialVersionUID = 1L;
+
+
 	SrcGroup srcGrp;
 	int seqNum;
-	
 	
 	public NackItem(SrcGroup srcGrp, int seqNum) {
 		this.srcGrp = srcGrp;
@@ -44,5 +49,9 @@ public class NackItem {
 			return false;
 		return true;
 	}
-
+	
+	@Override
+	public String toString() {
+		return "NackItem [srcGrp=" + srcGrp + ", seqNum=" + seqNum + "]";
+	}
 }

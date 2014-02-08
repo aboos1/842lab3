@@ -117,11 +117,12 @@ public class MessagePasser {
 				while (true) {
 					TimeStampedMessage msg = (TimeStampedMessage) in
 							.readObject();
+//System.out.println("The kind is" + msg.getKind() + " " + msg.getKind().equals("NACK") + " " + msg.getKind().equals("NACK REPLY"));
 
-					if (msg.getKind().equalsIgnoreCase("NACK")) {
+					if (msg.getKind().equals("NACK")) {
 						getNACK(msg);
 					} else {
-						if (msg.getKind().equalsIgnoreCase("NACK REPLY")) {
+						if (msg.getKind().equals("NACK REPLY")) {
 							msg = (TimeStampedMessage) msg.getData();
 						}
 
@@ -409,7 +410,7 @@ public class MessagePasser {
 		ObjectOutputStream out;
 		try {
 			out = outputStreamMap.get(dest);
-			System.out.println("msgTS in doSend" + msg.getMsgTS().toString());
+//System.out.println("msgTS in doSend" + msg.getMsgTS().toString());
 			out.writeObject(msg);
 			out.flush();
 
@@ -719,13 +720,14 @@ public class MessagePasser {
 							seqNum++;
 						}
 					} else { // nothing in holdback queue, just NACK next
-/*debug sentence */
+/*
 for(SrcGroup s : this.seqNums.keySet())
 	System.out.println(s.getSrc() + " " + s.getGroupName() + " " + this.seqNums.get(s));
 System.out.println("=========\n" + srcGrp.getSrc() + " " + srcGrp.getGroupName());
 if(seqNums.containsKey(srcGrp)) {
 	System.out.println("we find it");
 }
+*/
 						NackItem nack = new NackItem(srcGrp,
 							seqNums.get(srcGrp) + 1);
 						nackContent.add(nack);
@@ -738,7 +740,10 @@ if(seqNums.containsKey(srcGrp)) {
 				}
 				TimeStampedMessage nackMsg = new TimeStampedMessage(
 						g.getGroupName(), "NACK", nackContent, null);
-				checkSend(nackMsg); // skips rules and TS setting
+				for (String member : g.getMemberList()) {
+					applyRulesSend(nackMsg, member);
+				}
+				//checkSend(nackMsg); // skips rules and TS setting
 			}
 		}
 	}
@@ -748,6 +753,12 @@ if(seqNums.containsKey(srcGrp)) {
 		List<NackItem> nackContent = (List<NackItem>) msg.getData();
 		for (NackItem nack : nackContent) {
 			if (allMsg.containsKey(nack)) { // if has message
+System.out.println("WHy we get a reply?!?!");
+System.out.println(nack.toString());
+System.out.println("Print out the allMsg map");
+for(NackItem n : this.allMsg.keySet())
+	System.out.println(n.toString() + " " + this.allMsg.get(n).toString());
+
 				Message nackReply = new TimeStampedMessage(msg.getSrc(),
 						"NACK REPLY", allMsg.get(nack), null);
 				doSend(nackReply, nackReply.getDest());
