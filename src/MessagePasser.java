@@ -43,6 +43,8 @@ public class MessagePasser {
 	private LinkedList<Message> recvQueue = new LinkedList<Message>(); 
 	private HashMap<String, ObjectOutputStream> outputStreamMap = new HashMap<String, ObjectOutputStream>();
 	private Map<SocketInfo, Socket> sockets = new HashMap<SocketInfo, Socket>();
+
+
 	private Map<SrcGroup, List<Message>> holdBackMap = new HashMap<SrcGroup, List<Message>>();
 	private Map<NackItem, Message> allMsg = new HashMap<NackItem, Message>();
 
@@ -93,7 +95,7 @@ public class MessagePasser {
 			while(true) {			
 				sendNACK();
 				try {
-					Thread.currentThread().sleep(5000);
+					Thread.currentThread().sleep(15000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -101,6 +103,7 @@ public class MessagePasser {
 			}
 		}
 	}
+	
 	public class ListenThread extends Thread {
 		private Socket LisSock = null;
 
@@ -117,7 +120,6 @@ public class MessagePasser {
 				while (true) {
 					TimeStampedMessage msg = (TimeStampedMessage) in
 							.readObject();
-//System.out.println("The kind is" + msg.getKind() + " " + msg.getKind().equals("NACK") + " " + msg.getKind().equals("NACK REPLY"));
 
 					if (msg.getKind().equals("NACK")) {
 						getNACK(msg);
@@ -813,8 +815,8 @@ for(NackItem n : this.allMsg.keySet())
 			size = recvQueue.size();
 			for (; i < size; i++) {
 				TimeStampedMessage tmp = (TimeStampedMessage) recvQueue.get(i);
-				if (tmp.getMsgTS().compare(
-						((TimeStampedMessage) msg).getMsgTS()) != TimeStampRelation.greaterEqual) {
+				if (((TimeStampedMessage) msg).getMsgTS().compare
+						(tmp.getMsgTS()) != TimeStampRelation.greaterEqual) {
 					break;
 				}
 			}
@@ -830,6 +832,25 @@ for(NackItem n : this.allMsg.keySet())
 				+ ", config=" + config + "]";
 	}
 
+	public Map<SrcGroup, List<Message>> getHoldBackMap() {
+		return holdBackMap;
+	}
+	public void setHoldBackMap(Map<SrcGroup, List<Message>> holdBackMap) {
+		this.holdBackMap = holdBackMap;
+	}
+	public Map<NackItem, Message> getAllMsg() {
+		return allMsg;
+	}
+	public void setAllMsg(Map<NackItem, Message> allMsg) {
+		this.allMsg = allMsg;
+	}
+	public Map<SrcGroup, Integer> getSeqNums() {
+		return seqNums;
+	}
+	public void setSeqNums(Map<SrcGroup, Integer> seqNums) {
+		this.seqNums = seqNums;
+	}
+	
 	public boolean getIsLogical() {
 		return this.config.isLogical;
 	}

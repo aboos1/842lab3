@@ -63,6 +63,24 @@ public class CmdTool {
             	System.out.println("Start a periodically checking thread");
             	this.msgPasser.startCheckingThread();
             }
+            else if(cmdInput.equals("printAllMsg")) {
+            	System.out.println("The Map of allMsg is");
+            	for(NackItem n : this.msgPasser.getAllMsg().keySet()) {
+            		System.out.println(n.toString() + " " + this.msgPasser.getAllMsg().get(n).toString());
+            	}
+            }
+            else if(cmdInput.equals("printHoldBackMap")) {
+            	System.out.println("The Map of HoldBack Queue is");
+            	for(SrcGroup s : this.msgPasser.getHoldBackMap().keySet()) {
+            		System.out.println(s.toString() + " " + this.msgPasser.getHoldBackMap().get(s).toString());
+            	}
+            }
+            else if(cmdInput.equals("printSeqNums")) {
+            	System.out.println("The Map of SeqNums");
+            	for(SrcGroup s : this.msgPasser.getSeqNums().keySet()) {
+            		System.out.println(s.toString() + " " + this.msgPasser.getSeqNums().get(s).toString());
+            	}
+            }
             else if (!cmdInput.equals(null) && !cmdInput.equals("\n")) {
             	
             	String[] array = cmdInput.split(" ");

@@ -25,6 +25,15 @@ sendRules :
       dest : p3
       kind : Lookup
 
+    - action : drop
+      src : p1
+      dest : p2
+      kind : Ack
+
+    - action : drop
+      src : p1
+      kind : Ran
+
     - action : duplicate
       kind : Request
       dest : p4
