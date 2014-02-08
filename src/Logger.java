@@ -476,7 +476,7 @@ public class Logger implements Runnable {
             	
             	String[] array = cmdInput.split(" ");
             	if(array.length == 3)
-            		this.msgPasser.send(new TimeStampedMessage(array[0], array[1], array[2], null));
+            		this.msgPasser.send(new TimeStampedMessage(array[0], array[1], array[2], null, this.msgPasser.getLocalName()));
             	else if(cmdInput.equals("receive")) {
             		msg = this.msgPasser.receiveLogger();
             		if(msg == null) {

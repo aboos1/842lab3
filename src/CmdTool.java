@@ -67,7 +67,7 @@ public class CmdTool {
             	
             	String[] array = cmdInput.split(" ");
             	if(array.length == 3)
-            		this.msgPasser.send(new TimeStampedMessage(array[0], array[1], array[2], null));
+            		this.msgPasser.send(new TimeStampedMessage(array[0], array[1], array[2], null, this.msgPasser.getLocalName()));
             	
             	else if(cmdInput.equals("receive")) {
             		msg = this.msgPasser.receive();		
@@ -85,7 +85,7 @@ public class CmdTool {
             				System.out.println("Nothing to pass to Aplication!");
             			} else {
             				logMsg = new LogMessage(((TimeStampedMessage)msg).getMsg(), this.msgPasser.getClockSer().getTs().makeCopy());
-            				TimeStampedMessage newLogMsg = new TimeStampedMessage("logger", "log", logMsg, null);
+            				TimeStampedMessage newLogMsg = new TimeStampedMessage("logger", "log", logMsg, null, this.msgPasser.getLocalName());
     						this.msgPasser.send(newLogMsg);
           System.out.println("We receive");
 ((TimeStampedMessage)msg).dumpMsg();
@@ -98,7 +98,7 @@ System.out.println("Lamport time " + this.msgPasser.getClockSer().getTs().getLam
             			this.msgPasser.getClockSer().addTS(this.msgPasser.getLocalName());
 System.out.println("Lamport time " + this.msgPasser.getClockSer().getTs().getLamportClock());
 						logMsg = new LogMessage(array[1], this.msgPasser.getClockSer().getTs().makeCopy());
-						TimeStampedMessage newLogMsg = new TimeStampedMessage("logger", "log", logMsg, null);
+						TimeStampedMessage newLogMsg = new TimeStampedMessage("logger", "log", logMsg, null, this.msgPasser.getLocalName());
 						this.msgPasser.send(newLogMsg);
             			//this.msgPasser.logEvent(array[1], this.msgPasser.getClockSer().getTs().makeCopy());
             		} else {
@@ -107,12 +107,12 @@ System.out.println("Lamport time " + this.msgPasser.getClockSer().getTs().getLam
             	}
             	else if(array.length == 4) {
             		if(array[0].equals("log")) {
-            			TimeStampedMessage newMsg = new TimeStampedMessage(array[1], array[2], array[3], null);
+            			TimeStampedMessage newMsg = new TimeStampedMessage(array[1], array[2], array[3], null, this.msgPasser.getLocalName());
             			this.msgPasser.send(newMsg);
 System.out.println("send TS:" + this.msgPasser.getClockSer().getTs());
 						
 						logMsg = new LogMessage(newMsg.getMsg(), newMsg.getMsgTS().makeCopy());
-						TimeStampedMessage newLogMsg = new TimeStampedMessage("logger", "log", logMsg, null);
+						TimeStampedMessage newLogMsg = new TimeStampedMessage("logger", "log", logMsg, null, this.msgPasser.getLocalName());
 						this.msgPasser.send(newLogMsg);
             			//this.msgPasser.logEvent(newMsg.getMsg(), this.msgPasser.getClockSer().getTs().makeCopy());
             		}

@@ -122,9 +122,7 @@ public class MessagePasser {
 					if (msg.getKind().equals("NACK")) {
 						getNACK(msg);
 					} else {
-						if (msg.getKind().equals("NACK REPLY")) {
-							msg = (TimeStampedMessage) msg.getData();
-						}
+
 
 						// msg.dumpMsg();
 						parseConfig();
@@ -157,7 +155,6 @@ public class MessagePasser {
 								System.out.println("We receive a wierd msg!");
 							}
 						} else {
-System.out.println("Receive a common Message!");
 							synchronized (recvQueue) {
 								checkAdd(msg);
 								synchronized (delayRecvQueue) {
@@ -292,6 +289,7 @@ System.out.println("Receive a common Message!");
 		((TimeStampedMessage) message).setMsgTS(this.clockSer.getTs()
 				.makeCopy());
 		System.out.println("TS add by 1");
+		message.set_source(localName);
 		checkSend(message);
 		
 		
@@ -306,8 +304,11 @@ System.out.println("Receive a common Message!");
 			int sNum = seqNums.get(srcGrp);
 			// change to update function
 			NackItem ni = new NackItem(srcGrp, sNum);
-			allMsg.put(ni, message);
 			((TimeStampedMessage) message).setGrpSeqNum(sNum);
+			String grouName = new String(message.getDest());
+			message.setGrpDest(grouName);
+			allMsg.put(ni, message);
+			
 			for (String member : sendGroup.getMemberList()) {
 				message.setDest(member);
 				applyRulesSend(message, member);
@@ -337,7 +338,7 @@ System.out.println("Receive a common Message!");
 				dupMsg.set_duplicate(true);
 
 				/* Send 'message' and 'dupMsg' */
-				checkSend(message);
+				doSend(message, dest);
 				((TimeStampedMessage) dupMsg).setMsgTS(this.clockSer.getTs()
 						.makeCopy());
 				doSend(dupMsg,dest);
@@ -618,16 +619,28 @@ System.out.println("Receive a common Message!");
 
 	public void checkAdd(Message msg) {
 
-		if (config.getGroup(msg.getDest()) != null) { // multicast message
+		if (msg.getKind().equals("NACK REPLY")) {
 
-			SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getDest());
+System.out.println("NACK RELAY:");
+((TimeStampedMessage)msg).dumpMsg();
+for(NackItem n : this.allMsg.keySet())
+	System.out.println(n.toString() + " " + this.allMsg.get(n).toString());
+System.out.println("============");
+for(SrcGroup s : this.seqNums.keySet()) 
+	System.out.println(s.toString() + " " + this.seqNums.get(s).toString());
+
+			msg = (TimeStampedMessage) msg.getData();
+		}
+		if (msg.getGrpDest() != null) { // multicast message
+
+			SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getGrpDest());
 			int getNum = ((TimeStampedMessage) msg).getGrpSeqNum();
 			NackItem ni = new NackItem(srcGrp, getNum);
 			allMsg.put(ni, msg);
 
 			int seenNum = seqNums.get(srcGrp);
 
-			if (seenNum <= getNum) { // duplicate message. Ignore
+			if (seenNum >= getNum) { // duplicate message. Ignore
 				return;
 			} else if ((seenNum + 1) == getNum) { // in order. add to recvQueue
 				updateSequenceNumber(srcGrp);
@@ -643,7 +656,7 @@ System.out.println("Receive a common Message!");
 	}
 
 	public void addToHoldBack(Message msg) {
-		SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getDest());
+		SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getGrpDest());
 		List<Message> messagesInGroup;
 		if (holdBackMap.containsKey(srcGrp)) {
 			messagesInGroup = holdBackMap.get(srcGrp);
@@ -682,7 +695,7 @@ System.out.println("Receive a common Message!");
 	}
 
 	public void updateHoldback(Message msg) {
-		SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getDest());
+		SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getGrpDest());
 		if (holdBackMap.containsKey(srcGrp)) {
 			List<Message> messagesInGroup = holdBackMap.get(srcGrp);
 			while (!messagesInGroup.isEmpty()
@@ -737,14 +750,16 @@ if(seqNums.containsKey(srcGrp)) {
 					}
 					// send to original sender (might not be in group)
 					TimeStampedMessage nackMsgSrc = new TimeStampedMessage(
-						srcGrp.getSrc(), "NACK", nackContentSrc, null);
+						srcGrp.getSrc(), "NACK", nackContentSrc, null, this.localName);
 					nackMsgSrc.set_source(localName);
 					doSend(nackMsgSrc, srcGrp.getSrc());
 				}
 				TimeStampedMessage nackMsg = new TimeStampedMessage(
-						g.getGroupName(), "NACK", nackContent, null);
+						g.getGroupName(), "NACK", nackContent, null, this.localName);
 				nackMsg.set_source(localName);
 				for (String member : g.getMemberList()) {
+					nackMsg.setGrpDest(nackMsg.getDest());
+					nackMsg.setDest(member);
 					applyRulesSend(nackMsg, member);
 				}
 				//checkSend(nackMsg); // skips rules and TS setting
@@ -755,7 +770,7 @@ if(seqNums.containsKey(srcGrp)) {
 	public void getNACK(Message msg) {
 		@SuppressWarnings("unchecked")
 		List<NackItem> nackContent = (List<NackItem>) msg.getData();
-/*Debug: */
+/*Debug: 
 System.out.println("nack items get from NACK");
 for(NackItem m : nackContent) {
 	System.out.println(m.toString());
@@ -764,17 +779,29 @@ System.out.println("==================");
 for(NackItem n : this.allMsg.keySet()) {
 	System.out.println(n.toString() + " * ");
 }
-
+*/
+		/*
+if(this.localName.equals("p1")) {
+	System.out.println("allMsg is ");
+	for(NackItem n : this.allMsg.keySet())
+		System.out.println(n.toString() + " " + this.allMsg.get(n));
+}
+*/
 		for (NackItem nack : nackContent) {
 			if (allMsg.containsKey(nack)) { // if has message
+/*
+if(this.localName.equals("p1"))
+	System.out.println("matched Item:" + nack.toString());
+	*/
+/*
 System.out.println("WHy we get a reply?!?!");
 System.out.println(nack.toString());
 System.out.println("Print out the allMsg map");
 for(NackItem n : this.allMsg.keySet())
 	System.out.println(n.toString() + " " + this.allMsg.get(n).toString());
-
+*/
 				Message nackReply = new TimeStampedMessage(msg.getSrc(),
-						"NACK REPLY", allMsg.get(nack), null);
+						"NACK REPLY", allMsg.get(nack), null, this.localName);
 				doSend(nackReply, nackReply.getDest());
 			}
 		}

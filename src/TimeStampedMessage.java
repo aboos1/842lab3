@@ -4,8 +4,8 @@ public class TimeStampedMessage extends Message {
 	private TimeStamp msgTS = null;
 	private int grpSeqNum = 0;
 	
-	public TimeStampedMessage(String dest, String kind, Object data, TimeStamp ts) {
-		super(dest, kind, data);
+	public TimeStampedMessage(String dest, String kind, Object data, TimeStamp ts, String src) {
+		super(dest, kind, data, src);
 		this.msgTS = ts;
 		// TODO Auto-generated constructor stub
 	}
@@ -31,10 +31,12 @@ public class TimeStampedMessage extends Message {
 	}
 	
 	public Message makeCopy() {
-		Message result = new TimeStampedMessage(this.getDest(), this.getKind(), this.getData(), this.msgTS);
+		Message result = new TimeStampedMessage(this.getDest(), this.getKind(), this.getData(), this.msgTS, this.getSrc());
 		result.set_source(this.getSrc());
 		result.set_duplicate(this.isDuplicate());
 		result.set_seqNum(this.getSeqNum());
+		result.setGrpDest(this.getGrpDest());
+		((TimeStampedMessage)result).setGrpSeqNum(this.grpSeqNum);
 		return result;
 	}
 	
@@ -44,10 +46,11 @@ public class TimeStampedMessage extends Message {
 		System.out.println("Msg: Kind: " + super.getKind());
 		System.out.println("Msg: seqnum: " + super.getSeqNum());
 		System.out.println("Msg: data:  " + super.getData());
-		System.out.println("Msg: TS:  " + msgTS.toString());
+		System.out.println("Msg: grpSeqNum" + this.grpSeqNum);
+		//System.out.println("Msg: TS:  " + msgTS.toString());
 	}
 
 	public String toString() {
-		return (super.toString() + msgTS.toString()); 
+		return (super.toString() + msgTS.toString() + this.grpSeqNum); 
 	}
 }

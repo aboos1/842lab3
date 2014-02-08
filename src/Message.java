@@ -14,12 +14,16 @@ public abstract class Message implements Serializable {
 	private Object data;
 	private boolean duplicate;
 	private int seqNum;
+
+	private String grpDest;
 	
-	public Message(String dest, String kind, Object data) {
+	public Message(String dest, String kind, Object data, String src) {
 		this.dest = dest;
 		this.kind = kind;
 		this.data = data;
 		this.duplicate = false;
+		this.grpDest = null;
+		this.src = src;
 	}
 
 
@@ -64,11 +68,14 @@ public abstract class Message implements Serializable {
 		result = prime * result + ((data == null) ? 0 : data.hashCode());
 		result = prime * result + ((dest == null) ? 0 : dest.hashCode());
 		result = prime * result + (duplicate ? 1231 : 1237);
+		result = prime * result + ((grpDest == null) ? 0 : grpDest.hashCode());
 		result = prime * result + ((kind == null) ? 0 : kind.hashCode());
 		result = prime * result + seqNum;
 		result = prime * result + ((src == null) ? 0 : src.hashCode());
 		return result;
 	}
+
+
 
 	@Override
 	public boolean equals(Object obj) {
@@ -91,6 +98,11 @@ public abstract class Message implements Serializable {
 			return false;
 		if (duplicate != other.duplicate)
 			return false;
+		if (grpDest == null) {
+			if (other.grpDest != null)
+				return false;
+		} else if (!grpDest.equals(other.grpDest))
+			return false;
 		if (kind == null) {
 			if (other.kind != null)
 				return false;
@@ -105,11 +117,26 @@ public abstract class Message implements Serializable {
 			return false;
 		return true;
 	}
-	
+
+
+
 	@Override
 	public String toString() {
-		return "Message [src=" + src + ", dest=" + dest + ", kind=" + kind + ", data=" + data
-				+ ", duplicate=" + duplicate + ", seqNum=" + seqNum + "]";
+		return "Message [src=" + src + ", dest=" + dest + ", kind=" + kind
+				+ ", data=" + data + ", duplicate=" + duplicate + ", seqNum="
+				+ seqNum + ", grpDest=" + grpDest + "]";
 	}
+
+
+
+	public String getGrpDest() {
+		return grpDest;
+	}
+
+	public void setGrpDest(String grpDest) {
+		this.grpDest = grpDest;
+	}
+	
+
 	public abstract Message makeCopy();
 }
