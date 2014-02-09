@@ -12,9 +12,32 @@ import java.util.Vector;
 
 import org.yaml.snakeyaml.Yaml;
 
-
 public class MessagePasser 
 {
+	/**
+	 * key identifier for each message
+	 * @author xincenh
+	 *
+	 */
+	public class Key {
+		String src;
+		int seqNum;
+		
+		public Key(String s, int n) {
+			this.src = s;
+			this.seqNum = n;
+		}
+		
+		public int getSeqNum() {
+			return this.seqNum;
+		}
+		
+		public String getSrc() {
+			return this.getSrc();
+		}
+		
+	}
+	
 	//Buffer that holds messages on client side 
 	private LinkedList<Message> out_buffer = new LinkedList<Message>();    
 	
@@ -44,7 +67,8 @@ public class MessagePasser
 	private LinkedList<Message> multicastSendQueue = new LinkedList<Message>();
 	private HashMap<Integer, String> processes;
 	
-	private HashMap<String, ArrayList<Integer>> ACKMap = new HashMap<String, ArrayList<Integer>>();
+	private HashMap<Key, int[]> ACKMap = new HashMap<Key, int[]>();
+	//private HashMap<String, ArrayList<Integer>> ACKMap = new HashMap<String, ArrayList<Integer>>();
 	
 	private TimeStamp systemTimeStamp, groupTimeStamp;
 	private String localName;
@@ -87,8 +111,16 @@ public class MessagePasser
 			e.printStackTrace();
 		}
 	}
-	
-	private void processRules(Message message, String rule_type,
+	/**
+	 * 
+	 * @param message
+	 * @param rule_type
+	 * @param delay_list
+	 * @param buffer
+	 * @param array
+	 * @return applied rule type, if no rule applies, return "normal"
+	 */
+	private String processRules(Message message, String rule_type,
 			                 ArrayList<Message> delay_list, LinkedList<Message> buffer, ArrayList<Message> array)
 	{
 		Rule rule; 
@@ -98,7 +130,7 @@ public class MessagePasser
 		int seqNum;
 		Boolean duplicate;
 		
-		
+		String applied_rule;
 		for(int i=0; i < ruleList.size(); i++)
 		{
 			rule = ruleList.get(i);
@@ -118,7 +150,8 @@ public class MessagePasser
 								&& (kind == null || kind.equalsIgnoreCase(message.getKind())) && (seqNum == -1 || seqNum == message.getSeqNum())
 								&& (duplicate ==  false || duplicate.equals(message.getDuplicate())))
 						{
-							return null;		
+							applied_rule = "drop";
+							return applied_rule;		
 						}
 					}
 				else if(rule.getAction().equalsIgnoreCase("delay"))
@@ -130,7 +163,8 @@ public class MessagePasser
 					{
 						delay_list.add(message);
 						
-						return null;
+						applied_rule = "delay";
+						return applied_rule;
 					}
 								
 				}	
@@ -159,7 +193,8 @@ public class MessagePasser
 								buffer.add(delay_list.get(j));
 							delay_list.clear();
 							
-							return null;
+							applied_rule = "duplicate";
+							return applied_rule;
 						}
 						else  // receive
 						{
@@ -172,7 +207,8 @@ public class MessagePasser
 							delay_list.clear();
 							
 							array.trimToSize();
-							return array;
+							applied_rule = "duplicate";
+							return applied_rule;
 						}
 					}
 				}
@@ -189,7 +225,7 @@ public class MessagePasser
 			for(int i = 0; i < delay_list.size(); i++)
 				buffer.add(delay_list.get(i));        // moves potential delayed msg to buffer
 			delay_list.clear();
-			return null;
+			//return null;
 		}
 		else   // receive
 		{
@@ -199,8 +235,11 @@ public class MessagePasser
 			delay_list.clear();
 			
 			array.trimToSize();
-			return array;
+			//return array;
 		}
+		
+		applied_rule = "normal";
+		return applied_rule;
 	}
 	
 	private void checkConfigUpdates()
@@ -227,6 +266,8 @@ public class MessagePasser
 		if(message.getGroup() != null || !(message.getGroup().equals("")))
 		{
 			message.getDest().add(message.getSrc());    // add source to broadcast group
+			message.setOriginalSrc(message.getSrc());
+			
 			sendMulticast(message, flag);
 		}
 		else
@@ -237,6 +278,8 @@ public class MessagePasser
 				{
 					message.setHostname(conn.getIP());
 					message.setPort(conn.getPort());
+					message.setOriginalSrc(message.getSrc());
+					
 					flag = true;
 					break;
 				}
@@ -259,14 +302,18 @@ public class MessagePasser
 		}
 	}
 	
-	public void sendMulticast(Message message, boolean flag)
+	public void sendMulticast(Message message, boolean flag) 
 	{
 		/*boolean flag;
 		message.setSrc(localName);
 		message.setSeqNum(++seqNum);*/    // this is already done in send()
+		boolean send_success = false;
+		
+		multicastSendQueue.add(message);
 		
 		for(String dest_name : message.getDest())
 		{	
+			Message copy = message.clone();
 			// create entry in ACKMap for message
 			if(!dest_name.equalsIgnoreCase(localName))     // if this is not the source
 			{
@@ -275,8 +322,10 @@ public class MessagePasser
 				{
 					if(dest_name.equalsIgnoreCase(conn.getName()))
 					{
-						message.setHostname(conn.getIP());
-						message.setPort(conn.getPort());
+						copy.setHostname(conn.getIP());
+						copy.setPort(conn.getPort());
+						copy.setSrc(this.localName);
+						
 						flag = true;
 						break;
 					}
@@ -288,21 +337,27 @@ public class MessagePasser
 				}
 				else
 				{
-					if(message instanceof TimeStampedMessage)
-					{
-						incrementSystemTime();
-					}
 					
-					multicastSendQueue.add(message);
 					
+					send_success = true;
 					checkConfigUpdates();
 					
-					//processRules(message, "send", delayedOutMsg, out_buffer, null);
+					processRules(message, "send", delayedOutMsg, out_buffer, null);
 				}
+			}
+		}
+		
+		/* Only increase System time once
+		 * all copies of group message should hold the same timestamp */
+		if (send_success) {
+			if(message instanceof TimeStampedMessage)
+			{
+				incrementSystemTime();
 			}
 		}
 	}
 	
+	/*// change this function as the following two function
 	public ArrayList<Message> receive()
 	{
 		Message message;
@@ -326,8 +381,9 @@ public class MessagePasser
 			 incrementSystemTime();
 		 }
 		 
-		if(message.getGroup() != null || !(message.getGroup().equals("")))
-			receiveMulticast(message);
+		if(message.getGroup() != null || !(message.getGroup().equals(""))) {
+			array = receiveMulticast(message);
+		}
 		else
 		{
 			checkConfigUpdates();
@@ -337,7 +393,68 @@ public class MessagePasser
 			
 		return array;
 	}
+	*/
 	
+	/*
+	 * The receive() function should always return a single message;
+	 */
+	public Message receive() {
+		if (this.deliveryQueue.isEmpty()) {
+			synchronized(this.in_buffer) {
+				if (this.in_buffer.isEmpty()) {
+					try {
+						this.in_buffer.wait();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				processInBuffer();
+			} 
+		} 
+		Message msg = this.deliveryQueue.removeFirst();
+		return msg;
+		
+	}
+	
+	public void processInBuffer() {
+		Message message;
+		ArrayList<Message> array = new ArrayList<Message>();
+		
+		if (in_buffer.isEmpty()) 
+		{
+			System.out.println("No more messages!");
+		}
+		
+		while(!in_buffer.isEmpty()) {
+		 message = in_buffer.removeFirst();
+		 //System.out.println("message is: " + message);
+		 
+			if(message instanceof TimeStampedMessage)
+			 {
+				 updateSytemTimeStamp((TimeStampedMessage) message, getSrcPID(message), pid);
+	
+				 System.out.println("message received at: " + getSystemTimeStamp().
+				 getTimeStamp());
+				 incrementSystemTime();
+			 }
+			 
+			if(message.getGroup() != null || !(message.getGroup().equals(""))) {
+				receiveMulticast(message);
+			}
+			else
+			{
+				checkConfigUpdates();
+			
+			 	processRules(message, "receive", delayedInMsg, null, array);
+			}
+			
+		}
+		
+		for (int i = 0; i < array.size(); i++) {
+			this.addToDeliveryQueue(array.get(i));
+		}
+	}
 	/*
 	 *  This method receives the multicast messages.
 	 *  When a message comes in, the passer checks the hold back queue
@@ -346,53 +463,70 @@ public class MessagePasser
 	 *  message sequence to a sorting queue, and eventually to the delivery queue.
 	 *  Else, the message is re-broadcast to the group and added to the hold back queue 
 	 */
-	public ArrayList<Message> receiveMulticast(Message message)
+	public void receiveMulticast(Message message)
 	{
 		TimeStampedMessage ack, ts_msg;
-		//ArrayList<Message>array = new ArrayList<Message>();
+		ArrayList<Message> array = new ArrayList<Message>();	//message & duplicate & previously delayed ones
 		
-		if(message.getKind().equals("ACK"))
-			 processACK(message);
-		 else
-		 {
-			 if(!message.getOriginalSrc().equals(localName))       //  if this is not the message source
+		//First apply rules for received message
+		checkConfigUpdates();
+		String rule = processRules(message, "receive", delayedInMsg, null, array);
+		
+		if (rule.equalsIgnoreCase("drop") || rule.equalsIgnoreCase("delay")) {
+			return;
+		}
+		
+		// Need to process all message, including duplicate & previously delayed ones
+		for (int i = 0; i < array.size(); i++) {
+			Message msg = array.get(i);
+			
+			if(msg.getKind().equals("ACK")) {
+				/* Process ACK message, if all ack are received, 
+				/* will put corresponding message into deliveryQueue 
+				 */
+				processACK(msg);
+			}
+			 else
 			 {
-				 if(!isInHoldbackQueue(message))
+				 if(!msg.getOriginalSrc().equals(localName))       //  if local is not message original sender
 				 {
-					 holdbackQueue.add(message);
-					 
-					 // send ack
-					 ts_msg = (TimeStampedMessage) message;
-					 // note that original msg seqNum is stored in ACK's data field
-					 ack = new TimeStampedMessage(ts_msg.getGroup(), "ACK", ts_msg.getSeqNum(), 
-							 ts_msg.getMessageStart(), ts_msg.getMessageLength(), ts_msg.getTimeStamp().getClockServiceType(), 
-							 nbrOfProcesses, systemTimeStamp);
-					 ack.setSeqNum(ts_msg.getSeqNum() + 1);
-					 ack.setSrc(localName);
-					 ack.setOriginalSrc(ts_msg.getSrc());
-					 ack.setDest(ts_msg.getDest());
-					 
-					 //update ACKMap
-					 updateACKMap(ack);
-					 
-					 sendMulticast(ack, false);
+					 if(!isInHoldbackQueue(msg))
+					 {
+						 holdbackQueue.add(msg);
+						 
+						 // send ack
+						 ts_msg = (TimeStampedMessage) msg;
+						 
+						 Key msg_key = new Key(msg.getOriginalSrc(), msg.getSeqNum());
+						 // note that original msg seqNum is stored in ACK's data field
+						 ack = new TimeStampedMessage(ts_msg.getGroup(), "ACK", msg.getSeqNum(), 
+								 ts_msg.getMessageStart(), ts_msg.getMessageLength(), ts_msg.getTimeStamp().getClockServiceType(), 
+								 nbrOfProcesses, systemTimeStamp);
+						 
+						 //Why increase by 1?
+						 //ack.setSeqNum(ts_msg.getSeqNum() + 1);
+						 ack.setSeqNum(ts_msg.getSeqNum());
+						 ack.setSrc(localName);
+						 ack.setOriginalSrc(ts_msg.getSrc());
+						 ack.setDest(ts_msg.getDest());
+						 
+						 //update ACKMap
+						 updateACKMap(ack);
+						 
+						 sendMulticast(ack, false);
+					 }
 				 }
 			 }
-		 }
+		}
 		 
 		 
 		 
 		 updateSytemTimeStamp((TimeStampedMessage) message, getSrcPID(message), pid);
 
-		 System.out.println("message received at: " + getSystemTimeStamp().
-		 getTimeStamp());
+		 System.out.println("message received at: " + getSystemTimeStamp().getTimeStamp());
 		 incrementSystemTime();
 		 
-		 checkConfigUpdates();
-		
-		processRules(message, "receive", delayedInMsg, null, holdbackQueue);
-			
-		return holdbackQueue;
+		 //return holdbackQueue;
 	}
 	
 	/*
@@ -411,16 +545,16 @@ public class MessagePasser
 	/*
 	 *  Add a list of messages to the delivery queue in a sorted sequence
 	 */
-	private void addToDeliveryQueue(ArrayList<Message> msg_list)
+	private void addToDeliveryQueue(Message msg)
 	{
 		TimeStampedMessage ts_msg; 
 		Message m;
 		boolean message_sorted;
 		
-		for(int i =0; i < msg_list.size(); i++)
-		{
-			ts_msg = (TimeStampedMessage) msg_list.get(i);
-			
+		//for(int i =0; i < msg_list.size(); i++)
+		//{
+		//	ts_msg = (TimeStampedMessage) msg_list.get(i);
+		ts_msg = (TimeStampedMessage) msg;	
 			if(deliveryQueue.size() == 0)
 				deliveryQueue.add(ts_msg);
 			else
@@ -454,16 +588,30 @@ public class MessagePasser
 						deliveryQueue.add(ts_msg);					
 				}
 			}
-		}
-		holdbackQueue.clear();   // clear the hold back queue
+		//}
+		//holdbackQueue.clear();   // clear the hold back queue		??????? why clear the holdBackQueue?
 	}
-	
 	/*
 	 *  Update the map if it already has an entry for the message,
 	 *  else create one before updating it 
 	 */
     private void updateACKMap(Message message)
     {
+    	Key msg_key = new Key(message.getOriginalSrc(), message.getSeqNum());
+    	
+    	int[] ACKList = ACKMap.get(msg_key);
+    	int srcPid = getProcessPID(message.getSrc());
+    	
+    	if (ACKList != null)
+    		ACKList[srcPid] += 1;		//?????????????what if receive duplicate ACK??????????
+    	else
+    	{
+    		ACKList = new int[this.nbrOfProcesses];
+    		ACKList[srcPid] = 1;
+    		ACKMap.put(msg_key, ACKList);
+    	}
+    	
+    	/*
     	ArrayList<Integer> ACKList = ACKMap.get(message.getOriginalSrc()+message.getData());
     	
     	if (ACKList != null)
@@ -471,21 +619,31 @@ public class MessagePasser
     	else
     	{
     		ACKList = new ArrayList<Integer>();
-    		ACKList.add(pid, 1);
+    		ACKList.add(pid, 1);	// This could not set value at index_pid, out_of_size error!
     		ACKMap.put(message.getOriginalSrc()+message.getData(), ACKList);
     	}
+    	*/
     }
+    
+    /* 
+     * Process ACK message, if all ack are received, 
+     * will put corresponding message into deliveryQueue 
+	 */
 	
-	private void processACK(Message msg)
+	private void processACK(Message ack_msg)
 	{
+		Key msg_key = new Key(ack_msg.getOriginalSrc(), ack_msg.getSeqNum());
+		
 		boolean checkACKs = false;
-		updateACKMap(msg);
-		ArrayList<String> grp_members = msg.getDest();
-		int map_array_index;
+		updateACKMap(ack_msg);
+		
+		ArrayList<String> grp_members = ack_msg.getDest();
+		int dest_pid;
 		
 		// check whether all ACKs are in 
 		for(int i=0; i<grp_members.size(); i++)
 		{
+			/*
 			map_array_index = getProcessPID((String)grp_members.get(i));
 			if(ACKMap.get(msg.getSrc()+msg.getData()).get(grp_members.indexOf(map_array_index)) == msg.getMessageLength())
 				checkACKs = true;
@@ -494,30 +652,55 @@ public class MessagePasser
 				checkACKs = false;
 				break;
 			}
+			*/
+			
+			dest_pid = getProcessPID((String)grp_members.get(i));
+			if (dest_pid != pid) {
+				//A node doesn't send ACK to itself
+				if(ACKMap.get(msg_key)[dest_pid] == ack_msg.getMessageLength())
+					checkACKs = true;
+				else
+				{
+					checkACKs = false;
+					break;
+				}
+			}
 		}
 		
 		if(checkACKs)
 		{
-			if(msg.getOriginalSrc().equalsIgnoreCase(localName))      // if source
+			if(ack_msg.getOriginalSrc().equalsIgnoreCase(localName))      // if source
 			{
 				// remove message from multicast send Q
 				for(Message message : multicastSendQueue)
-					if(message.getSrc().equalsIgnoreCase(msg.getOriginalSrc()) && message.getSeqNum() == (Integer)msg.getData())	
+					if(message.getSrc().equalsIgnoreCase(ack_msg.getOriginalSrc()) && message.getSeqNum() == ack_msg.getSeqNum())	
 					{
+						//if(message.getSrc().equalsIgnoreCase(msg.getOriginalSrc()) && message.getSeqNum() == (Integer)msg.getData())	
+						
 						multicastSendQueue.remove(message);
 						break;
 					}
 			}
-			else
-				addToDeliveryQueue(holdbackQueue);    // check!!!!! not all messages should be xfered
-			
+			else {
+				for (int i = 0; i < holdbackQueue.size(); i++) {
+					Message m = holdbackQueue.get(i);
+					if (m.getSeqNum() == ack_msg.getSeqNum() && m.getOriginalSrc().equalsIgnoreCase(ack_msg.getOriginalSrc())); {
+						addToDeliveryQueue(m);
+						holdbackQueue.remove(i);
+						break;
+					}
+				}
+				
+
+				//addToDeliveryQueue(holdbackQueue);    // check!!!!! not all messages should be xfered
+														// change this function to add a single message in deliveryQueue
+			}
 			// remove message from ACKMap
-			ACKMap.remove(msg.getSrc()+msg.getData());
+			ACKMap.remove(msg_key);
 			
 			//stop timer
 						
-		}
-		
+		}	
 	}
 	
 	/*
