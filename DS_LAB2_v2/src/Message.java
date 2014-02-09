@@ -5,6 +5,7 @@ import java.util.ArrayList;
 public class Message implements Serializable, Comparable
 {
 	private ArrayList<String> dest;
+	//private String dest;
 	private String group;
 	private String src;
 	private int seqNum, start_num, length;
@@ -13,6 +14,12 @@ public class Message implements Serializable, Comparable
 	private Object data;
 	private int port;
 	private String hostname, originalDest, loggedRule, originalSrc;
+	
+	/**
+	 * key identifier for each message
+	 * @author xincenh
+	 *
+	 */
 	
 	/*
 	 * Constructor
@@ -105,6 +112,7 @@ public class Message implements Serializable, Comparable
 		return length;
 	}
 	
+	
 	/*
 	 * Setters
 	 */
@@ -182,16 +190,31 @@ public class Message implements Serializable, Comparable
 	}
 	
 	/*
-	 * We consider that two messages are equal if they have the same src and seqNum
+	 * We consider that two messages are equal if they have the same OriginalSrc and seqNum
 	 * by definition, this combination uniquely identifies a message...
 	 * 
 	 * If two messages are equal, ret 0 else, ret -1
 	 */
 	public int compareTo(Object msg)
 	{
-		if(src.equalsIgnoreCase(((Message)msg).getSrc()) && seqNum == ((Message)msg).getSeqNum())
+		if(this.originalSrc.equalsIgnoreCase(((Message) msg).getOriginalSrc()) && seqNum == ((Message) msg).getSeqNum())
 			return 0;
 		else
 			return -1;
+	}
+	
+	
+	public Message clone()  {
+		Message copy = new Message(this.group,this.kind, this.getData(), this.start_num, this.length);
+		copy.setDest(this.getDest());
+		copy.setSrc(this.getSrc());
+		copy.setSeqNum(this.getSeqNum());
+		copy.setDuplicate(this.duplicate);
+		copy.setPort(this.port);
+		copy.setHostname(this.hostname);
+		copy.setOriginalDest(this.originalDest);
+		copy.setOriginalSrc(this.originalSrc);
+		copy.setLoggedRule(this.getLoggedRule());
+		return copy;
 	}
 }
