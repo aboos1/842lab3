@@ -1,13 +1,6 @@
 /* 18-842 Distributed Systems
- * Lab 0
- * Group 41 - ajaltade & dil1
- */
-
-/*
- * TODO: Figure out what seq nums to nack - iterate holdback
- * 		 Parsing
- * 		 Thread to send pulse check
- * 		 
+ * Lab 2
+ * Group 30 - aboos & dil1
  */
 
 import java.io.EOFException;
@@ -51,7 +44,6 @@ public class MessagePasser {
 	private String configFilename;
 
 	private String localName;
-	private String loggerName = "logger";
 	private ServerSocket hostListenSocket;
 	private SocketInfo hostSocketInfo;
 	private Config config;
@@ -91,6 +83,7 @@ public class MessagePasser {
 	public class sendPeriodNACK extends Thread {
 		public sendPeriodNACK() {}
 		
+		@SuppressWarnings("static-access")
 		public void run() {
 			while(true) {			
 				sendNACK();
@@ -461,13 +454,6 @@ public class MessagePasser {
 		synchronized (recvQueue) {
 			if (!recvQueue.isEmpty()) {
 				Message popMsg = recvQueue.remove();
-				/* add ClockService */
-				TimeStampedMessage msg = (TimeStampedMessage) popMsg;
-				// System.out.println("new Debug sentence");
-				// msg.dumpMsg();
-				// this.clockSer.updateTS(msg.getMsgTS());
-				// this.clockSer.addTS(this.localName);
-				/* */
 
 				return popMsg;
 			}
@@ -607,7 +593,6 @@ public class MessagePasser {
 		this.delayRecvQueue.clear();
 		this.delayRecvQueue.clear();
 		this.recvQueue.clear();
-		this.currSeqNum = 0;
 		this.clockSer.cleanUp();
 
 		if (!this.config.isLogical) {

@@ -1,10 +1,12 @@
 /* 18-842 Distributed Systems
- * Lab 1
+ * Lab 2
+ * Group 30 - aboos & dil1
  */
+
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map.Entry;
@@ -33,7 +35,6 @@ public class Logger implements Runnable {
 		receiverThread.start();
 	}
 	
-	@SuppressWarnings("unchecked")
 	private void logNewEvent(TimeStampedMessage msg) {
 		String src;
 		ArrayList<LogMessage> eventList = null;
@@ -84,6 +85,7 @@ public class Logger implements Runnable {
 		return isSuccess;
 	}
 	
+	/*
 	private boolean checkDup(ArrayList<LogMessage> eventList, LogMessage newEvent) 
 	{
 		boolean isDup = false;
@@ -97,7 +99,7 @@ public class Logger implements Runnable {
 		}
 		
 		return isDup;
-	}
+	}*/
 
 	private void dumpEventMaps() {
 		
@@ -225,7 +227,6 @@ public class Logger implements Runnable {
 	
 	private void getSequence(LogMessage startEvent)
 	{
-		ArrayList<LogMessage> loggedMsgs;
 		LogMessage nextMsg = null;
 		
 		/*
@@ -312,12 +313,10 @@ public class Logger implements Runnable {
 		startMsgs.clear();
 	}
 	
-	@SuppressWarnings("unchecked")
 	private LogMessage getSequenceNextEvent(Entry<String, ArrayList<LogMessage>> mapEntry, LogMessage curEvent)
 	{
 		LogMessage retMsg = null;
 		ArrayList<LogMessage> loggedMsgs;
-		TimeStampedMessage loggedTSMsg = null;
 		TimeStamp loggedTS = null;
 		TimeStamp curTS = curEvent.getEventTS();
 		
@@ -502,7 +501,6 @@ public class Logger implements Runnable {
 		for(String e : this.eventMap.keySet()) {
 			for(LogMessage f : this.eventMap.get(e)) {
 				TimeStamp ts = f.getEventTS();
-				//System.out.println("\n" + f.msg.getMsgTS().toString() + " " + "concurrent messages : ");
 				for(String str : this.eventMap.keySet()) {
 					for(LogMessage lm : this.eventMap.get(str)) {
 						if(ts.compare(lm.getEventTS()) == TimeStampRelation.concurrent) {
@@ -518,7 +516,6 @@ public class Logger implements Runnable {
 	public void printLogicalConcurrent() {
 		for(String e : this.eventMap.keySet()) {
 			for(LogMessage f : this.eventMap.get(e)) {
-				TimeStamp ts = f.getEventTS();
 				//System.out.println("\n" + f.msg.getMsgTS().toString() + " " + "concurrent messages : ");
 				for(String str : this.eventMap.keySet()) {
 					for(LogMessage lm : this.eventMap.get(str)) {

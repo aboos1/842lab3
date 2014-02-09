@@ -1,11 +1,9 @@
-import java.util.ArrayList;
-import java.util.List;
-
-
 /* 18-842 Distributed Systems
- * Lab 1
- * Group 41 - Ankur & Di 
+ * Lab 2
+ * Group 30 - aboos & dil1
  */
+
+import java.util.List;
 
 public class Config {
 

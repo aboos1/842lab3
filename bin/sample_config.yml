@@ -15,6 +15,10 @@ configuration :
       ip : 127.0.0.1   
       port : 59877  
       clockType: vector
+    - name : logger
+      ip : 127.0.0.1   
+      port : 59879 
+      clockType: vector
 sendRules :
     - action : delay
       dest : p4

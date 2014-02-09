@@ -1,3 +1,8 @@
+/* 18-842 Distributed Systems
+ * Lab 2
+ * Group 30 - aboos & dil1
+ */
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -8,8 +13,6 @@ public class Group {
 
 	private List<String> memberList;
 	private List<Member> members;
-
-
 
 	public Group() {
 		this.memberList = new ArrayList<String>();

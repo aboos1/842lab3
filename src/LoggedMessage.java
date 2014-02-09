@@ -1,7 +1,11 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+/* 18-842 Distributed Systems
+ * Lab 2
+ * Group 30 - aboos & dil1
+ */
+
 import java.util.ArrayList;
+
+
 
 public class LoggedMessage {
 	

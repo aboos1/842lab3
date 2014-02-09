@@ -1,11 +1,14 @@
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+/* 18-842 Distributed Systems
+ * Lab 2
+ * Group 30 - aboos & dil1
+ */
+
 import java.io.Serializable;
 import java.util.ArrayList;
 
 public class LogMessage implements Serializable {
 
+	private static final long serialVersionUID = 1L;
 	String event;
 	TimeStamp eventTS; 
 	ArrayList<LogMessage> nextMsgs = new ArrayList<LogMessage>();

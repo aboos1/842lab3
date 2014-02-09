@@ -1,6 +1,6 @@
 /* 18-842 Distributed Systems
- * Lab 0
- * Group 41 - ajaltade & dil1
+ * Lab 2
+ * Group 30 - aboos & dil1
  */
 
 public class SocketInfo {

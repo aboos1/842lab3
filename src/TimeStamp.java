@@ -1,3 +1,8 @@
+/* 18-842 Distributed Systems
+ * Lab 2
+ * Group 30 - aboos & dil1
+ */
+
 import java.io.Serializable;
 import java.util.HashMap;
 
@@ -84,6 +89,7 @@ public class TimeStamp implements Serializable {
 		}
 		
 	}
+	@SuppressWarnings("unchecked")
 	public TimeStamp makeCopy() {
 		TimeStamp result = new TimeStamp();
 		int tmp = this.lamportClock;

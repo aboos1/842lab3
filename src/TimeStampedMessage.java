@@ -1,6 +1,11 @@
+/* 18-842 Distributed Systems
+ * Lab 2
+ * Group 30 - aboos & dil1
+ */
 
 public class TimeStampedMessage extends Message {
 
+	private static final long serialVersionUID = 1L;
 	private TimeStamp msgTS = null;
 	private int grpSeqNum = 0;
 	

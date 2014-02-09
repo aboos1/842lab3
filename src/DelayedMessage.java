@@ -1,8 +1,9 @@
+/* 18-842 Distributed Systems
+ * Lab 2
+ * Group 30 - aboos & dil1
+ */
 
 public class DelayedMessage {
-	
-
-
 	private Message message;
 	private String dest;
 	
