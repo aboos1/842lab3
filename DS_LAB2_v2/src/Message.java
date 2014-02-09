@@ -8,12 +8,12 @@ public class Message implements Serializable, Comparable
 	private String dest;
 	private String group;
 	private String src;
-	private int seqNum, start_num, length;
-	private boolean duplicate;
-	private String kind;
-	private Object data;
-	private int port;
-	private String hostname, originalDest, loggedRule, originalSrc;
+	public int seqNum, start_num, length;
+	public boolean duplicate;
+	public String kind;
+	public Object data;
+	public int port;
+	public String hostname, originalDest, loggedRule, originalSrc;
 	
 	/**
 	 * key identifier for each message

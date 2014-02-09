@@ -16,6 +16,7 @@ public class Process
 		}
 		
 		MessagePasser mpasser = new MessagePasser(args[0], args[1]);
+		System.out.println("This is "+ args[1]);
 		
 		try 
 		{

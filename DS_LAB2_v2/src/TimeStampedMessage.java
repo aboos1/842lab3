@@ -6,6 +6,13 @@ public class TimeStampedMessage extends Message implements Serializable
 {
 	private TimeStamp timeStamp, logsTimeStamp;
 	
+	public TimeStampedMessage(String group, String kind, Object data, int start, int length, 
+			TimeStamp ts)
+	{
+		super(group, kind, data, start, length);
+		setTimeStamp(ts);
+	}
+	
 	public TimeStampedMessage(String group, String kind, Object data, int start, int length,
 								String clock_service, int size, TimeStamp ts)
 	{
@@ -36,5 +43,20 @@ public class TimeStampedMessage extends Message implements Serializable
 	{
 		for(int i = 0; i <logsTimeStamp.getTimeStamp().size(); i++)
 			logsTimeStamp.getTimeStamp().set(i, ts.getTimeStamp().get(i));
+	}
+	
+	public TimeStampedMessage clone()  {
+		TimeStampedMessage copy = new TimeStampedMessage(this.getGroup(), this.getKind(), 
+				this.getData(), this.start_num, this.seqNum, this.getTimeStamp());
+		copy.setDest(this.getDest());
+		copy.setSrc(this.getSrc());
+		copy.setSeqNum(this.getSeqNum());
+		copy.setDuplicate(this.duplicate);
+		copy.setPort(this.port);
+		copy.setHostname(this.hostname);
+		copy.setOriginalDest(this.originalDest);
+		copy.setOriginalSrc(this.originalSrc);
+		copy.setLoggedRule(this.getLoggedRule());
+		return copy;
 	}
 }

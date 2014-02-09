@@ -39,10 +39,10 @@ public class MessagePasser
 	}
 	
 	//Buffer that holds messages on client side 
-	private LinkedList<Message> out_buffer = new LinkedList<Message>();    
+	private LinkedList<TimeStampedMessage> out_buffer = new LinkedList<TimeStampedMessage>();    
 	
 	//Buffer that holds messages on receiver thread
-	private LinkedList<Message> in_buffer = new LinkedList<Message>();
+	private LinkedList<TimeStampedMessage> in_buffer = new LinkedList<TimeStampedMessage>();
 	
 	//All connections with other process
 	private ArrayList<Connection> connList = new ArrayList<Connection>();
@@ -52,20 +52,20 @@ public class MessagePasser
 	private HashMap<String, ArrayList<String>> groups = new HashMap<String, ArrayList<String>>();
 	
 	//Hold all delayed message need to send out
-	private ArrayList<Message> delayedOutMsg = new ArrayList<Message>();
+	private ArrayList<TimeStampedMessage> delayedOutMsg = new ArrayList<TimeStampedMessage>();
 	
 	//Hold all delayed message on receiver side
-	private ArrayList<Message> delayedInMsg = new ArrayList<Message>();
+	private ArrayList<TimeStampedMessage> delayedInMsg = new ArrayList<TimeStampedMessage>();
 	
 	//Hold all message has not been confirmed by the group other nodes
-	private ArrayList<Message> holdbackQueue = new ArrayList<Message>();
+	private ArrayList<TimeStampedMessage> holdbackQueue = new ArrayList<TimeStampedMessage>();
 	
 	//Finally message delivered to application
-	private LinkedList<Message> deliveryQueue = new LinkedList<Message>();
+	private LinkedList<TimeStampedMessage> deliveryQueue = new LinkedList<TimeStampedMessage>();
 	
 	//Holds multicast message
-	private LinkedList<Message> multicastSendQueue = new LinkedList<Message>();
-	private HashMap<Message, TimeoutService>  timeoutServ = new HashMap<Message, TimeoutService>();
+	private LinkedList<TimeStampedMessage> multicastSendQueue = new LinkedList<TimeStampedMessage>();
+	private HashMap<TimeStampedMessage, TimeoutService>  timeoutServ = new HashMap<TimeStampedMessage, TimeoutService>();
 	
 	private HashMap<Integer, String> processes;
 	
@@ -122,11 +122,11 @@ public class MessagePasser
 	 * @param array
 	 * @return applied rule type, if no rule applies, return "normal"
 	 */
-	private String processRules(Message message, String rule_type,
-			                 ArrayList<Message> delay_list, LinkedList<Message> buffer, ArrayList<Message> array)
+	private String processRules(TimeStampedMessage message, String rule_type,
+			                 ArrayList<TimeStampedMessage> delay_list, LinkedList<TimeStampedMessage> buffer, ArrayList<TimeStampedMessage> array)
 	{
 		Rule rule; 
-		Message copy;
+		TimeStampedMessage copy;
 		String dest, src, kind, group_name;
 		String group;
 		int seqNum;
@@ -177,7 +177,7 @@ public class MessagePasser
 							&& (kind == null || kind.equalsIgnoreCase(message.getKind())) && (seqNum == -1 || seqNum == message.getSeqNum())
 							&& (duplicate ==  false || duplicate.equals(message.getDuplicate())))
 					{
-						copy = new Message(null, null, null, 0, 0);
+						copy = message.clone();
 						copy.setSrc(message.getSrc());
 						copy.setDest(message.getDest());
 						copy.setKind(message.getKind());
@@ -259,7 +259,7 @@ public class MessagePasser
 		 }
 	}
 	
-	public void send(Message message)
+	public void send(TimeStampedMessage message)
 	{
 		boolean flag = false;
 		message.setSrc(localName);
@@ -272,8 +272,8 @@ public class MessagePasser
 			multicastSendQueue.add(message);
 			
 			//Start timer
-			TimeoutService ts = new TimeoutService(10, this, message);
-			timeoutServ.put(message, ts);
+			//TimeoutService ts = new TimeoutService(30, this, message);
+			//timeoutServ.put(message, ts);
 			
 			if(message instanceof TimeStampedMessage)
 			{
@@ -314,7 +314,7 @@ public class MessagePasser
 		}
 	}
 	
-	public void sendMulticast(Message message, boolean flag) 
+	public void sendMulticast(TimeStampedMessage message, boolean flag) 
 	{
 		/*boolean flag;
 		message.setSrc(localName);
@@ -324,7 +324,7 @@ public class MessagePasser
 		String group = message.getGroup();
 		for(String dest_name : this.groups.get(group))
 		{	
-			Message copy = message.clone();
+			TimeStampedMessage copy = message.clone();
 			
 			// create entry in ACKMap for message
 			if(!dest_name.equalsIgnoreCase(localName))     
@@ -362,7 +362,7 @@ public class MessagePasser
 		 * If this is not the source, also need to send a copy to source
 		 */
 		if (!message.getOriginalSrc().equalsIgnoreCase(localName)) {
-			Message copy = message.clone();
+			TimeStampedMessage copy = message.clone();
 			String orig_src = message.getOriginalSrc();
 			flag = false;
 			for(Connection conn: connList) 
@@ -385,10 +385,10 @@ public class MessagePasser
 	}
 	
 	/*// change this function as the following two function
-	public ArrayList<Message> receive()
+	public ArrayList<TimeStampedMessage> receive()
 	{
-		Message message;
-		ArrayList<Message> array = new ArrayList<Message>();
+		TimeStampedMessage message;
+		ArrayList<TimeStampedMessage> array = new ArrayList<TimeStampedMessage>();
 		
 		if (in_buffer.isEmpty()) 
 		{
@@ -425,7 +425,7 @@ public class MessagePasser
 	/*
 	 * The receive() function should always return a single message;
 	 */
-	public Message receive() {
+	public TimeStampedMessage receive() {
 		if (this.deliveryQueue.isEmpty()) {
 			synchronized(this.in_buffer) {
 				if (this.in_buffer.isEmpty()) {
@@ -439,14 +439,14 @@ public class MessagePasser
 				processInBuffer();
 			} 
 		} 
-		Message msg = this.deliveryQueue.removeFirst();
+		TimeStampedMessage msg = this.deliveryQueue.removeFirst();
 		return msg;
 		
 	}
 	
 	public void processInBuffer() {
-		Message message;
-		ArrayList<Message> array = new ArrayList<Message>();
+		TimeStampedMessage message;
+		ArrayList<TimeStampedMessage> array = new ArrayList<TimeStampedMessage>();
 		
 		if (in_buffer.isEmpty()) 
 		{
@@ -490,10 +490,10 @@ public class MessagePasser
 	 *  message sequence to a sorting queue, and eventually to the delivery queue.
 	 *  Else, the message is re-broadcast to the group and added to the hold back queue 
 	 */
-	public void receiveMulticast(Message message)
+	public void receiveMulticast(TimeStampedMessage message)
 	{
 		TimeStampedMessage ack, ts_msg;
-		ArrayList<Message> array = new ArrayList<Message>();	//message & duplicate & previously delayed ones
+		ArrayList<TimeStampedMessage> array = new ArrayList<TimeStampedMessage>();	//message & duplicate & previously delayed ones
 		
 		//First apply rules for received message
 		checkConfigUpdates();
@@ -505,7 +505,7 @@ public class MessagePasser
 		
 		// Need to process all message, including duplicate & previously delayed ones
 		for (int i = 0; i < array.size(); i++) {
-			Message msg = array.get(i);
+			TimeStampedMessage msg = array.get(i);
 			
 			if(msg.getKind().equals("ACK")) {
 				/* Process ACK message, if all ack are received, 
@@ -522,7 +522,7 @@ public class MessagePasser
 						 holdbackQueue.add(msg);
 						 
 						 // send ack
-						 ts_msg = (TimeStampedMessage) msg;
+						 ts_msg = msg;
 						 
 						 Key msg_key = new Key(msg.getOriginalSrc(), msg.getSeqNum());
 						 // note that original msg seqNum is stored in ACK's data field
@@ -532,9 +532,9 @@ public class MessagePasser
 						 
 						 //Why increase by 1?
 						 //ack.setSeqNum(ts_msg.getSeqNum() + 1);
-						 ack.setSeqNum(ts_msg.getSeqNum());
+						 ack.setSeqNum(msg.getSeqNum());
 						 ack.setSrc(localName);
-						 ack.setOriginalSrc(ts_msg.getSrc());
+						 ack.setOriginalSrc(msg.getSrc());
 						 //ack.setDest(ts_msg.getDest());
 						 
 						 //update ACKMap
@@ -562,9 +562,9 @@ public class MessagePasser
 	/*
 	 * Checks whether a message is already in the hold back queue
 	 */
-	private boolean isInHoldbackQueue(Message msg)
+	private boolean isInHoldbackQueue(TimeStampedMessage msg)
 	{
-		for(Message m : holdbackQueue)
+		for(TimeStampedMessage m : holdbackQueue)
 			if(m.compareTo(msg) == 0)
 				return true;
 		
@@ -575,10 +575,10 @@ public class MessagePasser
 	/*
 	 *  Add a list of messages to the delivery queue in a sorted sequence
 	 */
-	private void addToDeliveryQueue(Message msg)
+	private void addToDeliveryQueue(TimeStampedMessage msg)
 	{
 		TimeStampedMessage ts_msg; 
-		Message m;
+		TimeStampedMessage m;
 		boolean message_sorted;
 		
 		//for(int i =0; i < msg_list.size(); i++)
@@ -625,7 +625,7 @@ public class MessagePasser
 	 *  Update the map if it already has an entry for the message,
 	 *  else create one before updating it 
 	 */
-    private void updateACKMap(Message message)
+    private void updateACKMap(TimeStampedMessage message)
     {
     	Key msg_key = new Key(message.getOriginalSrc(), message.getSeqNum());
     	
@@ -660,7 +660,7 @@ public class MessagePasser
      * will put corresponding message into deliveryQueue 
 	 */
 	
-	private void processACK(Message ack_msg)
+	private void processACK(TimeStampedMessage ack_msg)
 	{
 		Key msg_key = new Key(ack_msg.getOriginalSrc(), ack_msg.getSeqNum());
 		
@@ -703,20 +703,20 @@ public class MessagePasser
 			if(ack_msg.getOriginalSrc().equalsIgnoreCase(localName))      // if source
 			{
 				// remove message from multicast send Q
-				for(Message message : multicastSendQueue)
+				for(TimeStampedMessage message : multicastSendQueue)
 					if(message.getSrc().equalsIgnoreCase(ack_msg.getOriginalSrc()) && message.getSeqNum() == ack_msg.getSeqNum())	
 					{
 						//if(message.getSrc().equalsIgnoreCase(msg.getOriginalSrc()) && message.getSeqNum() == (Integer)msg.getData())	
 						
 						multicastSendQueue.remove(message);
-						timeoutServ.get(message).cancel();
-						timeoutServ.remove(message);
+						//timeoutServ.get(message).cancel();
+						//timeoutServ.remove(message);
 						break;
 					}
 			}
 			else {
 				for (int i = 0; i < holdbackQueue.size(); i++) {
-					Message m = holdbackQueue.get(i);
+					TimeStampedMessage m = holdbackQueue.get(i);
 					if (m.getSeqNum() == ack_msg.getSeqNum() && m.getOriginalSrc().equalsIgnoreCase(ack_msg.getOriginalSrc())); {
 						addToDeliveryQueue(m);
 						holdbackQueue.remove(i);
@@ -742,12 +742,12 @@ public class MessagePasser
 		return pid;
 	}
 	
-	public LinkedList<Message> getOutBuffer()
+	public LinkedList<TimeStampedMessage> getOutBuffer()
 	{
 		return out_buffer;
 	}
 	
-	public LinkedList<Message> getInBuffer()
+	public LinkedList<TimeStampedMessage> getInBuffer()
 	{
 		return in_buffer;
 	}
@@ -795,7 +795,7 @@ public class MessagePasser
 	 * 
 	 * @return an integer
 	 */
-	public int getSrcPID(Message msg)
+	public int getSrcPID(TimeStampedMessage msg)
 	{ 
 		int src_pid = -1;
 		
@@ -831,8 +831,8 @@ public class MessagePasser
 	@SuppressWarnings("unchecked")
 	public void parseConfig() throws FileNotFoundException 
 	{
-		configFile = new File ("C:/Users/YAYA/workspace_1/DS_LAB2/src/configuration.yaml"); 
-		//configFile = new File ("/afs/andrew/usr1/ykandiss/public/" + configFileName); 
+		//configFile = new File ("C:/Users/YAYA/workspace_1/DS_LAB2/src/configuration.yaml"); 
+		configFile = new File (configFileName); 
 		fileModTime = configFile.lastModified();
 	    InputStream input = new FileInputStream(configFile);
 	    Yaml yaml = new Yaml();

@@ -14,7 +14,7 @@ public class TimeoutService {
 		timer = new Timer(); 
 		mpasser = mp;
 		message = m;
-		timer.schedule(new TimeoutTask(), 1000, seconds*1000);
+		timer.schedule(new TimeoutTask(), seconds*1000, seconds*1000);
 	}
 	
 	public void cancel() {

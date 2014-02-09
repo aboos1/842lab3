@@ -87,6 +87,7 @@ public class Client extends Thread
 					try 
 					{
 						// set up a new connection
+						System.out.println(message.getHostName() + " " + message.getPort());
 						Socket socket = new Socket(message.getHostName(), message.getPort());
 						ObjectOutputStream oout = new ObjectOutputStream(socket.getOutputStream());
 						
