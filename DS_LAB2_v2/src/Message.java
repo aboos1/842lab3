@@ -4,8 +4,8 @@ import java.util.ArrayList;
 
 public class Message implements Serializable, Comparable
 {
-	private ArrayList<String> dest;
-	//private String dest;
+	//private ArrayList<String> dest;
+	private String dest;
 	private String group;
 	private String src;
 	private int seqNum, start_num, length;
@@ -24,12 +24,18 @@ public class Message implements Serializable, Comparable
 	/*
 	 * Constructor
 	 */
-	public Message(String grp, String kind, Object data, int start, int lenth)
+	public Message(String dest, String kind, Object data, int start, int lenth)
 	{
-		group = grp;
+		if (dest.contains("Group")) {
+			this.group = dest;
+		} else {
+			this.dest = dest;
+			this.group = null;
+		}
+		
 		this.kind = kind;
 		this.data = data;
-		dest = new ArrayList<String>();
+		//dest = new ArrayList<String>();
 		seqNum = 0;
 		start_num = start;
 		this.length = lenth;
@@ -41,7 +47,7 @@ public class Message implements Serializable, Comparable
 	/*
 	 * Getters
 	 */
-	public ArrayList<String> getDest()
+	public String getDest()
 	{
 		return dest;
 	}
@@ -116,10 +122,13 @@ public class Message implements Serializable, Comparable
 	/*
 	 * Setters
 	 */
-	public void setDest(ArrayList<String> dest)
+	public void setDest(String dest)
 	{
+		/*
 		for(int i=0; i <dest.size(); i++)
 			this.dest.add(dest.get(i));
+			*/
+		this.dest = dest;
 	}
 	
 	public void setOriginalSrc(String od)
@@ -180,6 +189,7 @@ public class Message implements Serializable, Comparable
 	/*
 	 * Check whether a node is included in the destination list
 	 */
+	/*
 	public boolean includeDest(String host)
 	{
 		for(int i=0; i<dest.size(); i++)
@@ -187,7 +197,7 @@ public class Message implements Serializable, Comparable
 				return true;
 		
 		return false;
-	}
+	}*/
 	
 	/*
 	 * We consider that two messages are equal if they have the same OriginalSrc and seqNum

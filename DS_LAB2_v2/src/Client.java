@@ -63,63 +63,60 @@ public class Client extends Thread
 			{
 				message = mpasser.getOutBuffer().removeFirst();
 			
-				ArrayList<String> destList = message.getDest();
-				for (int i = 0; i < destList.size(); i++) {
-					String dest = destList.get(i);
-					
-					if((ssetup.get(dest) != null) && (ssetup.get(dest) == true)) 
-					{ 
-					// if connection already set up	
-						//Sender sender = new Sender(message, outs.get(message.getDest()));
+				String dest = message.getDest();
+				if((ssetup.get(dest) != null) && (ssetup.get(dest) == true)) 
+				{ 
+				// if connection already set up	
+					//Sender sender = new Sender(message, outs.get(message.getDest()));
+					//sender.start();
+					System.out.println("Sending message #" + message.getSeqNum() + " (" + message.getKind() + ")"
+										+ " from " + message.getSrc() + ": " + message.getData());
+					try 
+					{
+						outs.get(dest).writeObject(message);
+						outs.get(dest).flush();
+					}
+					catch (IOException e) 
+					{
+						System.out.println(dest + " not available!");
+						ssetup.put(dest, false);
+					}
+				}
+				else 
+				{
+					try 
+					{
+						// set up a new connection
+						Socket socket = new Socket(message.getHostName(), message.getPort());
+						ObjectOutputStream oout = new ObjectOutputStream(socket.getOutputStream());
+						
+						// store the connection
+						ssetup.put(dest, true);
+						connections.put(dest, socket);
+						outs.put(dest, oout);
+						
+						//Sender sender = new Sender(message, oout);
 						//sender.start();
 						System.out.println("Sending message #" + message.getSeqNum() + " (" + message.getKind() + ")"
 											+ " from " + message.getSrc() + ": " + message.getData());
-						try 
-						{
-							outs.get(dest).writeObject(message);
-							outs.get(dest).flush();
-						}
-						catch (IOException e) 
-						{
-							System.out.println(dest + " not available!");
-							ssetup.put(dest, false);
-						}
+										
+						oout.writeObject(message);
+						oout.flush();
 					}
-					else 
+					catch (UnknownHostException e) 
 					{
-						try 
-						{
-							// set up a new connection
-							Socket socket = new Socket(message.getHostName(), message.getPort());
-							ObjectOutputStream oout = new ObjectOutputStream(socket.getOutputStream());
-							
-							// store the connection
-							ssetup.put(dest, true);
-							connections.put(dest, socket);
-							outs.put(dest, oout);
-							
-							//Sender sender = new Sender(message, oout);
-							//sender.start();
-							System.out.println("Sending message #" + message.getSeqNum() + " (" + message.getKind() + ")"
-												+ " from " + message.getSrc() + ": " + message.getData());
-											
-							oout.writeObject(message);
-							oout.flush();
-						}
-						catch (UnknownHostException e) 
-						{
-							System.out.println(message.getDest() + " not available!");
-							e.printStackTrace();
-							ssetup.put(dest, false);
-						}
-						catch (IOException e)
-						{
-							System.out.println(message.getDest() + " not available!");
-							e.printStackTrace();
-							ssetup.put(dest, false);
-						}
+						System.out.println(message.getDest() + " not available!");
+						e.printStackTrace();
+						ssetup.put(dest, false);
+					}
+					catch (IOException e)
+					{
+						System.out.println(message.getDest() + " not available!");
+						e.printStackTrace();
+						ssetup.put(dest, false);
 					}
 				}
+				
 			}
 		}
 	}

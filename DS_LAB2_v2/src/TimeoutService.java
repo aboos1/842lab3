@@ -26,7 +26,7 @@ public class TimeoutService {
 		public void run() {
 			System.out.println("Time is up, resend group message!");
 			// Not complete yet.
-			mpasser.getOutBuffer().add(message);
+			mpasser.sendMulticast(message, false);
 		}
 	}
 }

@@ -3,7 +3,6 @@ groups : # A single, top-level section in the YAML file
     members : # Any number of members in the group
       - alice 
       - bob
-      - charlie
   - name : Group2 
     members :    
       - daphnie
@@ -12,14 +11,14 @@ groups : # A single, top-level section in the YAML file
       
 configuration :
   - name : alice
-    ip   : localhost
+    ip   : l27.0.0.1
     port : 12344 # This is the incoming port on which MP will listen
                # May be changed for further communication as usual
   - name : bob
-    ip   : localhost
+    ip   : l27.0.0.1
     port : 14255
   - name : charlie
-    ip   : 128.237.219.93
+    ip   : 127.0.0.1
     port : 12998
   - name : daphnie
     ip   : 128.237.217.222

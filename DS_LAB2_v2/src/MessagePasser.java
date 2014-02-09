@@ -65,6 +65,8 @@ public class MessagePasser
 	
 	//Holds multicast message
 	private LinkedList<Message> multicastSendQueue = new LinkedList<Message>();
+	private HashMap<Message, TimeoutService>  timeoutServ = new HashMap<Message, TimeoutService>();
+	
 	private HashMap<Integer, String> processes;
 	
 	private HashMap<Key, int[]> ACKMap = new HashMap<Key, int[]>();
@@ -146,7 +148,7 @@ public class MessagePasser
 				if(rule.getAction().equalsIgnoreCase("drop"))   
 					{
 						if((group == null || group.equalsIgnoreCase(message.getGroup())) &&
-								(dest == null || message.includeDest(dest)) && (src == null || src.equalsIgnoreCase(message.getSrc()))
+								(dest == null || message.getDest().equals(dest)) && (src == null || src.equalsIgnoreCase(message.getSrc()))
 								&& (kind == null || kind.equalsIgnoreCase(message.getKind())) && (seqNum == -1 || seqNum == message.getSeqNum())
 								&& (duplicate ==  false || duplicate.equals(message.getDuplicate())))
 						{
@@ -157,7 +159,7 @@ public class MessagePasser
 				else if(rule.getAction().equalsIgnoreCase("delay"))
 				{
 					if((group == null || group.equalsIgnoreCase(message.getGroup())) &&
-							(dest == null || message.includeDest(dest)) && (src == null || src.equalsIgnoreCase(message.getSrc()))
+							(dest == null || message.getDest().equals(dest)) && (src == null || src.equalsIgnoreCase(message.getSrc()))
 							&& (kind == null || kind.equalsIgnoreCase(message.getKind())) && (seqNum == -1 || seqNum == message.getSeqNum())
 							&& (duplicate ==  false || duplicate.equals(message.getDuplicate())))
 					{
@@ -171,7 +173,7 @@ public class MessagePasser
 				else if(rule.getAction().equalsIgnoreCase("duplicate"))
 				{
 					if((group == null || group.equalsIgnoreCase(message.getGroup())) &&
-							(dest == null || message.includeDest(dest)) && (src == null || src.equalsIgnoreCase(message.getSrc()))
+							(dest == null || message.getDest().equals(dest)) && (src == null || src.equalsIgnoreCase(message.getSrc()))
 							&& (kind == null || kind.equalsIgnoreCase(message.getKind())) && (seqNum == -1 || seqNum == message.getSeqNum())
 							&& (duplicate ==  false || duplicate.equals(message.getDuplicate())))
 					{
@@ -265,8 +267,18 @@ public class MessagePasser
 		
 		if(message.getGroup() != null || !(message.getGroup().equals("")))
 		{
-			message.getDest().add(message.getSrc());    // add source to broadcast group
+			//message.getDest().add(message.getSrc());    // add source to broadcast group
 			message.setOriginalSrc(message.getSrc());
+			multicastSendQueue.add(message);
+			
+			//Start timer
+			TimeoutService ts = new TimeoutService(10, this, message);
+			timeoutServ.put(message, ts);
+			
+			if(message instanceof TimeStampedMessage)
+			{
+				incrementSystemTime();
+			}
 			
 			sendMulticast(message, flag);
 		}
@@ -309,13 +321,13 @@ public class MessagePasser
 		message.setSeqNum(++seqNum);*/    // this is already done in send()
 		boolean send_success = false;
 		
-		multicastSendQueue.add(message);
-		
-		for(String dest_name : message.getDest())
+		String group = message.getGroup();
+		for(String dest_name : this.groups.get(group))
 		{	
 			Message copy = message.clone();
+			
 			// create entry in ACKMap for message
-			if(!dest_name.equalsIgnoreCase(localName))     // if this is not the source
+			if(!dest_name.equalsIgnoreCase(localName))     
 			{
 				flag = false;
 				for(Connection conn: connList) 
@@ -325,7 +337,7 @@ public class MessagePasser
 						copy.setHostname(conn.getIP());
 						copy.setPort(conn.getPort());
 						copy.setSrc(this.localName);
-						
+						copy.setDest(dest_name);
 						flag = true;
 						break;
 					}
@@ -337,24 +349,39 @@ public class MessagePasser
 				}
 				else
 				{
-					
-					
+
 					send_success = true;
 					checkConfigUpdates();
 					
-					processRules(message, "send", delayedOutMsg, out_buffer, null);
+					processRules(copy, "send", delayedOutMsg, out_buffer, null);
 				}
 			}
 		}
 		
-		/* Only increase System time once
-		 * all copies of group message should hold the same timestamp */
-		if (send_success) {
-			if(message instanceof TimeStampedMessage)
+		/*
+		 * If this is not the source, also need to send a copy to source
+		 */
+		if (!message.getOriginalSrc().equalsIgnoreCase(localName)) {
+			Message copy = message.clone();
+			String orig_src = message.getOriginalSrc();
+			flag = false;
+			for(Connection conn: connList) 
 			{
-				incrementSystemTime();
+				if(orig_src.equalsIgnoreCase(conn.getName()))
+				{
+					copy.setHostname(conn.getIP());
+					copy.setPort(conn.getPort());
+					copy.setSrc(this.localName);
+					copy.setDest(orig_src);
+					flag = true;
+					break;
+				}
+			}
+			if (flag) {
+				processRules(copy, "send", delayedOutMsg, out_buffer, null);
 			}
 		}
+		// We don't increment system time 
 	}
 	
 	/*// change this function as the following two function
@@ -427,7 +454,7 @@ public class MessagePasser
 		}
 		
 		while(!in_buffer.isEmpty()) {
-		 message = in_buffer.removeFirst();
+			message = in_buffer.removeFirst();
 		 //System.out.println("message is: " + message);
 		 
 			if(message instanceof TimeStampedMessage)
@@ -445,18 +472,18 @@ public class MessagePasser
 			else
 			{
 				checkConfigUpdates();
-			
 			 	processRules(message, "receive", delayedInMsg, null, array);
+			 	
+			 	for (int i = 0; i < array.size(); i++) {
+					this.addToDeliveryQueue(array.get(i));
+				}
 			}
 			
 		}
 		
-		for (int i = 0; i < array.size(); i++) {
-			this.addToDeliveryQueue(array.get(i));
-		}
 	}
 	/*
-	 *  This method receives the multicast messages.
+	 *  This method processes received multicast messages.
 	 *  When a message comes in, the passer checks the hold back queue
 	 *  to see whether that message was previously received. If, yes
 	 *  and this is the last packet, then the passer proceeds to forwarding the 
@@ -508,23 +535,26 @@ public class MessagePasser
 						 ack.setSeqNum(ts_msg.getSeqNum());
 						 ack.setSrc(localName);
 						 ack.setOriginalSrc(ts_msg.getSrc());
-						 ack.setDest(ts_msg.getDest());
+						 //ack.setDest(ts_msg.getDest());
 						 
 						 //update ACKMap
 						 updateACKMap(ack);
 						 
 						 sendMulticast(ack, false);
+						 
+						 updateSytemTimeStamp((TimeStampedMessage) message, getSrcPID(message), pid);
+
+						 System.out.println("message received at: " + getSystemTimeStamp().getTimeStamp());
+						 incrementSystemTime();
 					 }
+					 
 				 }
 			 }
 		}
 		 
 		 
 		 
-		 updateSytemTimeStamp((TimeStampedMessage) message, getSrcPID(message), pid);
-
-		 System.out.println("message received at: " + getSystemTimeStamp().getTimeStamp());
-		 incrementSystemTime();
+		 
 		 
 		 //return holdbackQueue;
 	}
@@ -637,7 +667,8 @@ public class MessagePasser
 		boolean checkACKs = false;
 		updateACKMap(ack_msg);
 		
-		ArrayList<String> grp_members = ack_msg.getDest();
+		String groupname = ack_msg.getGroup();
+		ArrayList<String> grp_members = this.groups.get(groupname);
 		int dest_pid;
 		
 		// check whether all ACKs are in 
@@ -678,6 +709,8 @@ public class MessagePasser
 						//if(message.getSrc().equalsIgnoreCase(msg.getOriginalSrc()) && message.getSeqNum() == (Integer)msg.getData())	
 						
 						multicastSendQueue.remove(message);
+						timeoutServ.get(message).cancel();
+						timeoutServ.remove(message);
 						break;
 					}
 			}
@@ -697,8 +730,6 @@ public class MessagePasser
 			}
 			// remove message from ACKMap
 			ACKMap.remove(msg_key);
-			
-			//stop timer
 						
 		}	
 	}

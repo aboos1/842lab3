@@ -61,12 +61,10 @@ public class Process
 				}
 				else if (command.equals("r")) 
 				{
-					ArrayList<Message> messages = mpasser.receive();
+					Message aMessage = mpasser.receive();
 					
-					if (messages != null) 
+					if (aMessage != null) 
 					{
-						for(Message aMessage: messages) 
-						{
 							System.out.println("Message #" + aMessage.getSeqNum() + " (" + aMessage.getKind() + ")"
 										+ " from " + aMessage.getSrc() + ": " + aMessage.getData());
 							
@@ -76,7 +74,6 @@ public class Process
 							                       ((TimeStampedMessage)aMessage).
 										getTimeStamp().getTimeStamp());
 							}
-						}
 					}
 				}
 				else if (commandArgs[0].equals("s")) 
@@ -125,6 +122,6 @@ public class Process
 	public static void Usage() 
 	{
 		System.out.println("Usage: <configuration_filename> <local_name> <clock service: logical or vector>");
-		System.out.println("CommandLine: q: quit, r: receive, s <dest> <kind> <data>: send");
+		System.out.println("CommandLine: q: quit, r: receive, s <dest/group> <kind> <data>: send");
 	}
 }
