@@ -15,24 +15,43 @@ import org.yaml.snakeyaml.Yaml;
 
 public class MessagePasser 
 {
+	//Buffer that holds messages on client side 
 	private LinkedList<Message> out_buffer = new LinkedList<Message>();    
+	
+	//Buffer that holds messages on receiver thread
 	private LinkedList<Message> in_buffer = new LinkedList<Message>();
+	
+	//All connections with other process
 	private ArrayList<Connection> connList = new ArrayList<Connection>();
 	private ArrayList<Rule> ruleList = new ArrayList<Rule>();
+	
+	//keep track of all groups, key:group name, value:all host
 	private HashMap<String, ArrayList<String>> groups = new HashMap<String, ArrayList<String>>();
+	
+	//Hold all delayed message need to send out
 	private ArrayList<Message> delayedOutMsg = new ArrayList<Message>();
+	
+	//Hold all delayed message on receiver side
 	private ArrayList<Message> delayedInMsg = new ArrayList<Message>();
+	
+	//Hold all message has not been confirmed by the group other nodes
 	private ArrayList<Message> holdbackQueue = new ArrayList<Message>();
+	
+	//Finally message delivered to application
 	private LinkedList<Message> deliveryQueue = new LinkedList<Message>();
+	
+	//Holds multicast message
 	private LinkedList<Message> multicastSendQueue = new LinkedList<Message>();
 	private HashMap<Integer, String> processes;
+	
 	private HashMap<String, ArrayList<Integer>> ACKMap = new HashMap<String, ArrayList<Integer>>();
+	
 	private TimeStamp systemTimeStamp, groupTimeStamp;
 	private String localName;
 	private String configFileName;
 	public static int seqNum;
 	private File configFile;
-	private int nbrOfProcesses;
+	private int nbrOfProcesses;	// number of process in the config file
 	private long fileModTime;
 	private int pid;
 	
@@ -69,7 +88,7 @@ public class MessagePasser
 		}
 	}
 	
-	private ArrayList<Message> processRules(Message message, String rule_type,
+	private void processRules(Message message, String rule_type,
 			                 ArrayList<Message> delay_list, LinkedList<Message> buffer, ArrayList<Message> array)
 	{
 		Rule rule; 
@@ -236,7 +255,7 @@ public class MessagePasser
 			
 			checkConfigUpdates();
 			
-			//processRules(message, "send", delayedOutMsg, out_buffer, null);
+			processRules(message, "send", delayedOutMsg, out_buffer, null);
 		}
 	}
 	
@@ -287,7 +306,7 @@ public class MessagePasser
 	public ArrayList<Message> receive()
 	{
 		Message message;
-		ArrayList<Message>array = new ArrayList<Message>();
+		ArrayList<Message> array = new ArrayList<Message>();
 		
 		if (in_buffer.isEmpty()) 
 		{
