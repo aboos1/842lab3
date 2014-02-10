@@ -19,12 +19,14 @@ public class TimeoutService {
 	
 	public void cancel() {
 		timer.cancel();
-		System.out.println("Timer is canceled");
+		System.out.println("/***** Timer is canceled for " + message.originalSrc 
+				+ message.getSeqNum() + " ****/");
 	}
 	
 	class TimeoutTask extends TimerTask {
 		public void run() {
-			System.out.println("Time is up, resend group message!");
+			System.out.println("/******Time is up, resend group message!******/");
+			message.print();
 			// Not complete yet.
 			mpasser.sendMulticast(message, false);
 		}

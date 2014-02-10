@@ -188,8 +188,9 @@ public class Message implements Serializable, Comparable
 	
 	public void print() {
 		System.out.println( "#" + this.getSeqNum() + " (" + this.getKind() +
-				"), src " + this.src + " (orig: " + this.originalSrc + 
-				"), dest: " + this.getDest() + " (" + this.getGroup() +")");
+				"), src: " + this.src + " (orig: " + this.originalSrc + 
+				"), dest: " + this.getDest() + " (" + this.getGroup() +")" + 
+				"data: " + this.getData());
 	}
 	/*
 	 * Check whether a node is included in the destination list

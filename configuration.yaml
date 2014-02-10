@@ -41,13 +41,15 @@ receiveRules :
   - action : duplicate # 3rd message from Charlie that anyone
     src    : daphnie # receives will be duplicated
     seqNum : 3
-  - action : drop
-    src	   : daphnie
-    duplicate : true
-  - action : drop
-    src	   : daphnie
+  - action : delay
+    src	   : alice
     dest   : bob
-    seqNum : 1
+    seqNum : 4
+  - action : drop
+    src	   : charlie
+    dest   : bob
+    kind   : Ack
+    seqNum : 4
 
 
 

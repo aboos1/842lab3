@@ -74,6 +74,8 @@ public class MessagePasser
 	private HashMap<String, ArrayList<Integer>> ACKMap = new HashMap<String, ArrayList<Integer>>();
 	//private HashMap<String, ArrayList<Integer>> ACKMap = new HashMap<String, ArrayList<Integer>>();
 	
+	private HashMap<TimeStampedMessage, Boolean> blockingMsg = new HashMap<TimeStampedMessage, Boolean>();
+	
 	private TimeStamp systemTimeStamp, groupTimeStamp;
 	private String localName;
 	private String configFileName;
@@ -201,8 +203,11 @@ public class MessagePasser
 							buffer.add(copy);
 							
 							// add potentially delayed messages to out buffer
-							for(int j = 0; j < delay_list.size(); j++)
+							for(int j = 0; j < delay_list.size(); j++) {
 								buffer.add(delay_list.get(j));
+								System.out.print("Send delayed message : ");
+								delay_list.get(j).print();
+							}
 							delay_list.clear();
 							
 							applied_rule = "duplicate";
@@ -214,8 +219,9 @@ public class MessagePasser
 							array.add(copy);
 								
 							// add potentially delayed messages to out buffer
-							for(int j = 0; j < delay_list.size(); j++)
+							for(int j = 0; j < delay_list.size(); j++) {
 								array.add(delay_list.get(j));
+							}
 							delay_list.clear();
 							
 							array.trimToSize();
@@ -234,16 +240,20 @@ public class MessagePasser
 		if(rule_type.equalsIgnoreCase("send"))
 		{
 			buffer.add(message);
-			for(int i = 0; i < delay_list.size(); i++)
+			for(int i = 0; i < delay_list.size(); i++) {
 				buffer.add(delay_list.get(i));        // moves potential delayed msg to buffer
+				System.out.print("Send delayed message : ");
+				delay_list.get(i).print();
+			}
 			delay_list.clear();
 			//return null;
 		}
 		else   // receive
 		{
 			array.add(message);
-			for(int j = 0; j < delay_list.size(); j++)
+			for(int j = 0; j < delay_list.size(); j++) {
 				array.add(delay_list.get(j));
+			}
 			delay_list.clear();
 			
 			array.trimToSize();
@@ -258,6 +268,7 @@ public class MessagePasser
 	{
 		if(configFile.lastModified() > fileModTime)
 		 {
+			System.out.println("ConfigFile is modified");
 			 try
 			 {
 				 parseConfig();
@@ -273,6 +284,7 @@ public class MessagePasser
 	{
 		boolean flag = false;
 		message.setSrc(localName);
+		message.setOriginalSrc(localName);
 		message.setSeqNum(++seqNum);
 		
 		System.out.println("------Send Message : " + 
@@ -283,12 +295,12 @@ public class MessagePasser
 		if(message.getGroup() != null || !(message.getGroup().equals("")))
 		{
 			//message.getDest().add(message.getSrc());    // add source to broadcast group
-			message.setOriginalSrc(message.getSrc());
+			//message.setOriginalSrc(message.getSrc());
 			multicastSendQueue.add(message);
 			
 			//Start timer
 			if (this.enableTimeoutResend) {
-				TimeoutService ts = new TimeoutService(30, this, message);
+				TimeoutService ts = new TimeoutService(20, this, message);
 				timeoutServ.put(message, ts);
 			}
 			
@@ -337,9 +349,6 @@ public class MessagePasser
 	
 	public void sendMulticast(TimeStampedMessage message, boolean flag) 
 	{
-		/*boolean flag;
-		message.setSrc(localName);
-		message.setSeqNum(++seqNum);*/    // this is already done in send()
 		boolean send_success = false;
 		System.out.println(localName + " send multicast " + message.getKind().toUpperCase() +  " message");
 		String group = message.getGroup();
@@ -379,31 +388,6 @@ public class MessagePasser
 			}
 		}
 		
-		/*
-		 * If this is not the source, also need to send a copy to source
-		 */
-		/*
-		if (!message.getOriginalSrc().equalsIgnoreCase(localName)) {
-			TimeStampedMessage copy = message.clone();
-			String orig_src = message.getOriginalSrc();
-			flag = false;
-			for(Connection conn: connList) 
-			{
-				if(orig_src.equalsIgnoreCase(conn.getName()))
-				{
-					copy.setHostname(conn.getIP());
-					copy.setPort(conn.getPort());
-					copy.setSrc(this.localName);
-					copy.setDest(orig_src);
-					flag = true;
-					break;
-				}
-			}
-			if (flag) {
-				processRules(copy, "send", delayedOutMsg, out_buffer, null);
-			}
-		}
-		*/
 	}
 	
 	/*
@@ -413,12 +397,14 @@ public class MessagePasser
 		TimeStampedMessage msg  = null;
 		synchronized(this.deliveryQueue) {
             if(this.deliveryQueue.isEmpty()) {
+            	/*
                 try {
                     this.deliveryQueue.wait();
                 } catch (InterruptedException ex) {
                 	ex.printStackTrace();
                     Logger.getLogger(MessagePasser.class.getName()).log(Level.SEVERE, null, ex);
-                }
+                }*/
+            	return null;
             }
             msg = this.deliveryQueue.removeFirst();            
             return msg;
@@ -439,12 +425,7 @@ public class MessagePasser
 			synchronized(in_buffer) {
 				message = in_buffer.removeFirst();
 			}
-		 //System.out.println("message is: " + message);
-			System.out.println("-------Receive message #"+ message.getSeqNum() +
-					"(" + message.getKind() + ") from: " +
-					message.getSrc() + " (" + message.getGroup() + ", orig: " +
-					message.getOriginalSrc() + "): "+ 
-					message.getData() + "--------");
+					
 			if(message.getGroup() != null || !(message.getGroup().equals(""))) {
 				
 				receiveMulticast(message);
@@ -472,21 +453,27 @@ public class MessagePasser
 	 */
 	public void receiveMulticast(TimeStampedMessage message)
 	{
+		System.out.print("Receive multicast message");
+		message.print();
+		
 		TimeStampedMessage ack, ts_msg;
 		ArrayList<TimeStampedMessage> array = new ArrayList<TimeStampedMessage>();	//message & duplicate & previously delayed ones
 		
 		//First apply rules for received message
 		checkConfigUpdates();
 		String rule = processRules(message, "receive", delayedInMsg, null, array);
-		System.out.println("process multicast meesage");
+		//System.out.println("process multicast meesage");
 		if (rule.equalsIgnoreCase("drop") || rule.equalsIgnoreCase("delay")) {
-			System.out.println("message " + rule );
+			System.out.print(rule + " message ");
+			message.print();
 			return;
 		}
 		
 		// Need to process all message, including duplicate & previously delayed ones
 		for (int i = 0; i < array.size(); i++) {
 			TimeStampedMessage msg = array.get(i);
+			System.out.print("-------- Receive message: ");
+			msg.print();
 			
 			if(msg.getKind().equals("ACK")) {
 				/* Process ACK message, if all ack are received, 
@@ -498,11 +485,9 @@ public class MessagePasser
 			 {
 				 if(!msg.getOriginalSrc().equals(localName))       //  if local is not message original sender
 				 {
-					 if(!isInHoldbackQueue(msg))
-					 {
-						 synchronized(holdbackQueue) {
-							 holdbackQueue.add(msg);
-						 }
+					 //if(!isInHoldbackQueue(msg))
+					 //{
+						 
 						 // send ack
 						 ts_msg = msg;
 						 
@@ -517,15 +502,20 @@ public class MessagePasser
 						 ack.setSeqNum(msg.getSeqNum());
 						 ack.setSrc(localName);
 						 ack.setOriginalSrc(msg.getSrc());
+						 ack.setGroup(msg.getGroup());
 						 //ack.setDest(ts_msg.getDest());
 						 
 						 //update ACKMap
 						 //updateACKMap(ack);
 						 
 						 sendMulticast(ack, false);
-						 processACK(msg);
-						 
-					 }
+						 if(!isInHoldbackQueue(msg))
+						 {
+							 synchronized(holdbackQueue) {
+								 holdbackQueue.add(msg);
+							 }
+							 processACK(msg);
+						 }
 					 
 				 }
 			 }
@@ -564,9 +554,6 @@ public class MessagePasser
 		TimeStampedMessage m;
 		boolean message_sorted;
 		
-		//for(int i =0; i < msg_list.size(); i++)
-		//{
-		//	ts_msg = (TimeStampedMessage) msg_list.get(i);
 		ts_msg = (TimeStampedMessage) msg;	
 		synchronized(deliveryQueue) {
 			if(deliveryQueue.size() == 0) {
@@ -581,18 +568,16 @@ public class MessagePasser
 					for(int j=0; j < deliveryQueue.size(); j++)
 					{
 						m = deliveryQueue.get(j);
-						if((((VectorClock) (((TimeStampedMessage) m).getTimeStamp().getClockService())).
-						         compareTo((VectorClock)(ts_msg.getTimeStamp().getClockService())) == 0))
+						int compare = (((VectorClock) (((TimeStampedMessage) m).getTimeStamp().getClockService())).
+						         compareTo((VectorClock)(ts_msg.getTimeStamp().getClockService())));
+						System.out.println("compare number is: " + compare);
+						if(compare == 0)
 						{
 							deliveryQueue.add(ts_msg);
 							message_sorted = true;
 							break;
 						}
-						else if((((VectorClock) (((TimeStampedMessage) m).getTimeStamp().getClockService())).
-						         compareTo((VectorClock)(ts_msg.getTimeStamp().getClockService())) == -1)
-						         ||
-						         (((VectorClock) (((TimeStampedMessage) m).getTimeStamp().getClockService())).
-						         compareTo((VectorClock)(ts_msg.getTimeStamp().getClockService())) == -2))
+						else if(compare  == 1 || compare  == 2)
 						{
 							deliveryQueue.add(j, ts_msg);
 							message_sorted = true;
@@ -624,7 +609,7 @@ public class MessagePasser
     	
     	if (ACKList != null) {
     		ACKList.set(srcPid, ACKList.get(srcPid) + 1);
-    		System.out.println("set ACKMap as: " + msg_key + " " + ACKList);
+    		//System.out.println("set ACKMap as: " + msg_key + " " + ACKList);
     	}
     	else
     	{
@@ -634,7 +619,7 @@ public class MessagePasser
     		}
     		ACKList.set(srcPid, 1);	// This could not set value at index_pid, out_of_size error!
     		ACKMap.put(msg_key, ACKList);
-    		System.out.println("set ACKMap as: " + msg_key + " " + ACKList);
+    		//System.out.println("set ACKMap as: " + msg_key + " " + ACKList);
     	}
     }
     
@@ -664,7 +649,7 @@ public class MessagePasser
     		}
     	}
     	
-    	System.out.println("Actual key: " + actual_key + ACKList);
+    	//System.out.println("Actual key: " + actual_key + ACKList);
 		String groupname = ack_msg.getGroup();
 		ArrayList<String> grp_members = this.groups.get(groupname);
 		int dest_pid;
@@ -678,7 +663,7 @@ public class MessagePasser
 			dest_pid = getProcessPID((String)grp_members.get(i));
 		
 			if (dest_pid != pid) {
-				System.out.println("dest_pid: " + dest_pid + "; msg_length: "+ ack_msg.getMessageLength());
+				//System.out.println("dest_pid: " + dest_pid + "; msg_length: "+ ack_msg.getMessageLength());
 				if(ACKList.get(dest_pid) == ack_msg.getMessageLength())
 					checkACKs = true;
 				else
@@ -688,10 +673,10 @@ public class MessagePasser
 				}
 			}
 		}
-		System.out.println("check ACK is " + checkACKs);
+		System.out.println("check ACK for " + actual_key +" is " + checkACKs);
 		if(checkACKs)
 		{
-			System.out.println("All ACK received.");
+			//System.out.println("All ACK received.");
 			if(ack_msg.getOriginalSrc().equalsIgnoreCase(localName))      // if source
 			{
 				// remove message from multicast send Q
@@ -711,31 +696,62 @@ public class MessagePasser
 					}
 			}
 			
-				boolean deliverFlag = false;
-				ack_msg.print();
-					for (int i = 0; i < holdbackQueue.size(); i++) {
-						TimeStampedMessage m = holdbackQueue.get(i);
-						if ((m.getSeqNum() == ack_msg.getSeqNum()) &&
-								(m.getOriginalSrc().equalsIgnoreCase(ack_msg.getOriginalSrc()))) {
-							System.out.print(i + "th message is correct:  ");
-							m.print();
-							addToDeliveryQueue(m);
-							holdbackQueue.remove(i);
-							deliverFlag = true;
-							ACKMap.remove(actual_key);
-							break;
+			boolean deliverFlag = false;
+			System.out.println("holdbackQueue size is: " + this.holdbackQueue.size());
+			for (int i = 0; i < holdbackQueue.size(); i++) {
+				TimeStampedMessage m = holdbackQueue.get(i);
+				m.print();
+				if ((m.getSeqNum() == ack_msg.getSeqNum()) &&
+						(m.getOriginalSrc().equalsIgnoreCase(ack_msg.getOriginalSrc()))) {
+					System.out.print(i + "th message is correct:  ");
+					m.print();
+					
+					boolean haveWait = false;
+					
+					for (int j = 0; j< holdbackQueue.size(); j++ ){
+						TimeStampedMessage other = holdbackQueue.get(j);
+						if (j != i && other.getGroup().equals(m.getGroup())) {
+							int compare = (((VectorClock) (m.getTimeStamp().getClockService())).
+							         compareTo((VectorClock)other.getTimeStamp().getClockService()));
+							if (compare == 1 || compare == 2) {
+								
+								System.out.print("Blocked by message ");
+								other.print();
+								
+								haveWait = true;
+								break;
+							}
 						}
 					}
-					if (!deliverFlag) {
-						System.out.println("nothing to deliver");
-					}
-				
+					if (!haveWait) {
+						addToDeliveryQueue(m);
+						holdbackQueue.remove(i);
+						deliverFlag = true;
+						ACKMap.remove(actual_key);
+						System.out.println("having " + this.blockingMsg.size() +" message blocking");
+						for (TimeStampedMessage other : this.blockingMsg.keySet()) {
 
-				//addToDeliveryQueue(holdbackQueue);    // check!!!!! not all messages should be xfered
-														// change this function to add a single message in deliveryQueue
-			// remove message from ACKMap
+							if (other.getGroup().equals(m.getGroup()) && this.blockingMsg.get(other)) {
+									System.out.print("releasing blocking message: ");
+									other.print();
+									
+									addToDeliveryQueue(other);
+									this.blockingMsg.put(other, false);
+								}
+							}
+						break;
+					}else {
+						holdbackQueue.remove(i);
+						this.blockingMsg.put(m, true);
+						ACKMap.remove(actual_key);
+					}
+				}
+			}
 			
-			//System.out.println("Remove " + actual_key + " from ACKMap");
+			if (!deliverFlag) {
+				System.out.println("nothing to deliver");
+			}
+			
 		}	
 	}
 	
@@ -833,6 +849,7 @@ public class MessagePasser
 		return pid;
 	}
 	
+	
 	@SuppressWarnings("unchecked")
 	public void parseConfig() throws FileNotFoundException 
 	{
@@ -842,6 +859,9 @@ public class MessagePasser
 	    InputStream input = new FileInputStream(configFile);
 	    Yaml yaml = new Yaml();
 	    
+	    connList = new ArrayList<Connection> ();
+	    ruleList = new ArrayList<Rule>();
+	    groups = new HashMap<String, ArrayList<String>>();
 		Map<String, Map> map = yaml.loadAs(input, Map.class);
 		Iterator iterator  = map.keySet().iterator();
 		String temp;	

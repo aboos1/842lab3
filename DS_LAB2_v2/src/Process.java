@@ -28,7 +28,7 @@ public class Process
 		}
 		mpasser.setPid();       // sets process' ID
 		
-		mpasser.enableTimeoutResend = false;
+		mpasser.enableTimeoutResend = true;
 		
 		//System.out.println("my pid is: " + mpasser.getPid());
 		mpasser.initSystemTimeStamp(args[2], mpasser.getNbrOfProcesses());  // initialize reference time
@@ -71,6 +71,8 @@ public class Process
 							System.out.println("/***** Message #" + aMessage.getSeqNum() + " (" + aMessage.getKind() + ")"
 									+ " from " + aMessage.getSrc() + ": " + aMessage.getData() +
 									"with timestamp : " + aMessage.getTimeStamp().getTimeStamp() + " *****/");
+					} else {
+						System.out.println("Nothing received");
 					}
 				}
 				else if (commandArgs[0].equals("s")) 
@@ -94,6 +96,7 @@ public class Process
 					msg.setTimeStamp(mpasser.getSystemTimeStamp());
 					
 					mpasser.send(msg); //dest, kind, data
+					/*
 					if(msg instanceof TimeStampedMessage)
 					{
 						System.out.println("message time stamp is: " + ((TimeStampedMessage)msg).
@@ -103,6 +106,7 @@ public class Process
 					}
 					else
 						System.out.println("uh oh...."); 
+						*/
 				}
 				else 
 				{
