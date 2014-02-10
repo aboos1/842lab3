@@ -293,6 +293,9 @@ public class MessagePasser
 				incrementSystemTime();
 			}
 			
+			//Also send itself a copy
+			this.holdbackQueue.add(message);
+			processACK(message);
 			
 			sendMulticast(message, flag);
 		}
@@ -375,6 +378,7 @@ public class MessagePasser
 		/*
 		 * If this is not the source, also need to send a copy to source
 		 */
+		/*
 		if (!message.getOriginalSrc().equalsIgnoreCase(localName)) {
 			TimeStampedMessage copy = message.clone();
 			String orig_src = message.getOriginalSrc();
@@ -395,7 +399,7 @@ public class MessagePasser
 				processRules(copy, "send", delayedOutMsg, out_buffer, null);
 			}
 		}
-		// We don't increment system time 
+		*/
 	}
 	
 	/*
@@ -641,9 +645,9 @@ public class MessagePasser
 		String msg_key = new String(ack_msg.getOriginalSrc()+ ack_msg.getSeqNum());
 		
 		boolean checkACKs = false;
-		if (ack_msg.getKind().equals("ACK")) {
+		//if (ack_msg.getKind().equals("ACK")) {
 			updateACKMap(ack_msg);
-		}
+		//}
 		
 		ArrayList<Integer> ACKList = null;
 		String actual_key = null;
@@ -670,7 +674,6 @@ public class MessagePasser
 			dest_pid = getProcessPID((String)grp_members.get(i));
 		
 			if (dest_pid != pid) {
-				//A node doesn't send ACK to itself
 				System.out.println("dest_pid: " + dest_pid + "; msg_length: "+ ack_msg.getMessageLength());
 				if(ACKList.get(dest_pid) == ack_msg.getMessageLength())
 					checkACKs = true;
@@ -701,7 +704,7 @@ public class MessagePasser
 						
 					}
 			}
-			else {
+			
 				boolean deliverFlag = false;
 				ack_msg.print();
 					for (int i = 0; i < holdbackQueue.size(); i++) {
@@ -724,7 +727,6 @@ public class MessagePasser
 
 				//addToDeliveryQueue(holdbackQueue);    // check!!!!! not all messages should be xfered
 														// change this function to add a single message in deliveryQueue
-			}
 			// remove message from ACKMap
 			
 			//System.out.println("Remove " + actual_key + " from ACKMap");
