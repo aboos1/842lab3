@@ -1,7 +1,10 @@
-/* 18-842 Distributed Systems
- * Lab 2
- * Group 30 - aboos & dil1
- */
+/**
+ * @file ClockService.java
+ * @brief object to keep track of timestamps
+ * @author  aboos
+ * 			dil1
+ * @date 02/09/2014
+ * */
 
 public abstract class ClockService {
 

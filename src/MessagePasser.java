@@ -28,17 +28,20 @@ import org.yaml.snakeyaml.constructor.Constructor;
 
 public class MessagePasser {
 
+	private final int NACK_CHECK_MS = 15000;
+
 	// store the delayed send msg
-	private LinkedList<DelayedMessage> delaySendQueue = new LinkedList<DelayedMessage>(); 
+	private LinkedList<Message> delaySendQueue = new LinkedList<Message>();
 	// store the delayed recv msg
-	private LinkedList<Message> delayRecvQueue = new LinkedList<Message>(); 
+	private LinkedList<Message> delayRecvQueue = new LinkedList<Message>();
 	// store all the received msg from all receive sockets
-	private LinkedList<Message> recvQueue = new LinkedList<Message>(); 
-	private HashMap<String, ObjectOutputStream> outputStreamMap = new HashMap<String, ObjectOutputStream>();
+	private LinkedList<Message> recvQueue = new LinkedList<Message>();
+	private HashMap<String, ObjectOutputStream> outputStreamMap = 
+		new HashMap<String, ObjectOutputStream>();
 	private Map<SocketInfo, Socket> sockets = new HashMap<SocketInfo, Socket>();
 
-
-	private Map<SrcGroup, List<Message>> holdBackMap = new HashMap<SrcGroup, List<Message>>();
+	private Map<SrcGroup, List<Message>> holdBackMap = 
+		new HashMap<SrcGroup, List<Message>>();
 	private Map<NackItem, Message> allMsg = new HashMap<NackItem, Message>();
 
 	private String configFilename;
@@ -51,16 +54,16 @@ public class MessagePasser {
 
 	private ClockService clockSer;
 	// map of SEEN seqNums
-	private Map<SrcGroup, Integer> seqNums = new HashMap<SrcGroup, Integer>(); 
+	private Map<SrcGroup, Integer> seqNums = new HashMap<SrcGroup, Integer>();
+	private Map<String, Integer> sendSeqNums = new HashMap<String, Integer>();
 
 	private enum RuleType {
 		SEND, RECEIVE,
 	}
 
-	/*
-	 * sub-class for listen threads
+	/**
+	 * Listens on designated port for incoming messages
 	 */
-
 	public class startListen extends Thread {
 
 		public startListen() {
@@ -80,15 +83,21 @@ public class MessagePasser {
 		}
 	}
 	
+	/**
+	 * Sends a periodic NACK of the next item in each relevant group
+	 * Catches when last missed message was the last
+	 */
+
 	public class sendPeriodNACK extends Thread {
-		public sendPeriodNACK() {}
-		
+		public sendPeriodNACK() {
+		}
+
 		@SuppressWarnings("static-access")
 		public void run() {
-			while(true) {			
+			while (true) {
 				sendNACK();
 				try {
-					Thread.currentThread().sleep(15000);
+					Thread.currentThread().sleep(NACK_CHECK_MS);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -97,6 +106,10 @@ public class MessagePasser {
 		}
 	}
 	
+	/**
+	 * When connection made, starts receiving on Socket
+	 */
+
 	public class ListenThread extends Thread {
 		private Socket LisSock = null;
 
@@ -117,9 +130,6 @@ public class MessagePasser {
 					if (msg.getKind().equals("NACK")) {
 						getNACK(msg);
 					} else {
-
-
-						// msg.dumpMsg();
 						parseConfig();
 						Rule rule = null;
 						if ((rule = matchRule(msg, RuleType.RECEIVE)) != null) {
@@ -196,6 +206,10 @@ public class MessagePasser {
 		}
 
 	}
+	
+	/**
+	 * Constructor for class. Starts everything running.
+	 */
 
 	public MessagePasser(String configuration_filename, String local_name) {
 		configFilename = configuration_filename;
@@ -208,13 +222,14 @@ public class MessagePasser {
 			e.printStackTrace();
 		}
 
-		/*debug for parsing yaml to see whether we get the correct groups */
-		for(Group g : this.config.getGroupList()) {
+		/* debug for parsing yaml to see whether we get the correct groups */
+		for (Group g : this.config.getGroupList()) {
 			System.out.println(g.toString());
 		}
 		/* end debug */
-		/* Now, using localName get *this* MessagePasser's SocketInfo and
-		 * setup the listening socket and all other sockets to other hosts.
+		/*
+		 * Now, using localName get *this* MessagePasser's SocketInfo and setup
+		 * the listening socket and all other sockets to other hosts.
 		 * 
 		 * We can optionally, save this info in hostSocket and hostSocketInfo to
 		 * avoid multiple lookups into the 'sockets' Map.
@@ -253,32 +268,34 @@ public class MessagePasser {
 						+ e.toString());
 				System.exit(0);
 			}
-			/*need to initiate the seqNums map */
-			for(Group g : this.config.getGroupList()) {
+			/* need to initiate the seqNums map */
+			for (Group g : this.config.getGroupList()) {
 				SrcGroup tmp = new SrcGroup(this.localName, g.getGroupName());
 				this.seqNums.put(tmp, 0);
-				if(g.getMemberList().contains(this.localName)) {
-					for(SocketInfo s : this.config.configuration) {
-						SrcGroup tmpArray = new SrcGroup(s.getName(), g.getGroupName());
+				if (g.getMemberList().contains(this.localName)) {
+					for (SocketInfo s : this.config.configuration) {
+						SrcGroup tmpArray = new SrcGroup(s.getName(),
+								g.getGroupName());
 						this.seqNums.put(tmpArray, 0);
 					}
 				}
 			}
-			
+
 			/* start the listen thread */
 			new startListen().start();
+			new sendPeriodNACK().start();
 
 		}
 	}
-	public void startCheckingThread() {
-		/*start the thread sending periodicall NACK */
-		new sendPeriodNACK().start();
-	}
+	
+	/**
+	 * Send function called by application. 
+	 * Sets timestamp and calls function to continue sending
+	 * @param message: message to send
+	 */
+
 	public void send(Message message) {
-		/*
-		 * Re-parse the config. Check message against sendRules. Finally, send
-		 * the message using sockets.
-		 */
+		
 		/* update the timestamp */
 		this.clockSer.addTS(this.localName);
 		((TimeStampedMessage) message).setMsgTS(this.clockSer.getTs()
@@ -286,24 +303,27 @@ public class MessagePasser {
 		System.out.println("TS add by 1");
 		message.set_source(localName);
 		checkSend(message);
-		
-		
-	} 
+
+	}
+	
+	/**
+	 * Checks if message standard or multicast. Configures multicast.
+	 * @param message: message to send
+	 */
 
 	private void checkSend(Message message) {
 		// check if multicast
 		if (config.getGroup(message.getDest()) != null) { // multicast message
 			Group sendGroup = config.getGroup(message.getDest());
 			SrcGroup srcGrp = new SrcGroup(localName, sendGroup.getGroupName());
-			updateSequenceNumber(srcGrp); // on send, should update first
-			int sNum = seqNums.get(srcGrp);
+			int sNum = updateSendSequenceNumber(sendGroup.getGroupName());
 			// change to update function
 			NackItem ni = new NackItem(srcGrp, sNum);
 			((TimeStampedMessage) message).setGrpSeqNum(sNum);
 			String grouName = new String(message.getDest());
 			message.setGrpDest(grouName);
 			allMsg.put(ni, message);
-			
+
 			for (String member : sendGroup.getMemberList()) {
 				message.setDest(member);
 				applyRulesSend(message, member);
@@ -314,7 +334,13 @@ public class MessagePasser {
 		}
 	}
 	
-	private void applyRulesSend(Message message, String dest){
+	/**
+	 * Applies send rules to individual messages
+	 * @param message: message to send
+	 * @param dest: destination of message
+	 */
+
+	private void applyRulesSend(Message message, String dest) {
 		try {
 			parseConfig();
 		} catch (FileNotFoundException e) {
@@ -336,36 +362,46 @@ public class MessagePasser {
 				doSend(message, dest);
 				((TimeStampedMessage) dupMsg).setMsgTS(this.clockSer.getTs()
 						.makeCopy());
-				doSend(dupMsg,dest);
+				doSend(dupMsg, dest);
 
 				/*
 				 * We need to send delayed messages after new message. This was
 				 * clarified in Live session by Professor.
 				 */
-				for (DelayedMessage dm : delaySendQueue) {
-					doSend(dm.getMessage(),dm.getDest());
+				for (Message m : delaySendQueue) {
+					doSend(m,m.getDest());
 				}
 				delaySendQueue.clear();
 
 			} else if (rule.getAction().equals("delay")) {
-				DelayedMessage dm = new DelayedMessage(message,dest);
-				delaySendQueue.add(dm);
+				delaySendQueue.add(message);
 			} else {
-				System.out.println("We get a wierd message here!");
+				System.out.println("We get a weird message here!");
 			}
 		} else {
-			doSend(message,dest);
+			doSend(message, dest);
 
 			/*
 			 * We need to send delayed messages after new message. This was
 			 * clarified in Live session by Professor.
 			 */
-			for (DelayedMessage dm : delaySendQueue) {
-				doSend(dm.getMessage(),dm.getDest());
+			
+			if(!(message.getKind().equalsIgnoreCase("NACK") || 
+					message.getKind().equalsIgnoreCase("NACK_REPLY"))){
+				for (Message m : delaySendQueue) {
+					doSend(m, m.getDest());
+				}
+				delaySendQueue.clear();
 			}
-			delaySendQueue.clear();
 		}
 	}
+	
+	
+	/**
+	 * Send message over socket
+	 * @param message: message to send
+	 * @param dest: destination of message
+	 */
 
 	private void doSend(Message message, String dest) {
 
@@ -388,7 +424,6 @@ public class MessagePasser {
 				}
 				sendSock = new Socket(inf.getIp(), inf.getPort());
 			} catch (ConnectException e2) {
-				System.out.println("Connection refused to " + dest);
 				return;
 			} catch (IOException e) {
 				// Auto-generated catch block
@@ -408,18 +443,22 @@ public class MessagePasser {
 		ObjectOutputStream out;
 		try {
 			out = outputStreamMap.get(dest);
-//System.out.println("msgTS in doSend" + msg.getMsgTS().toString());
 			out.writeObject(msg);
 			out.flush();
 
 		} catch (SocketException e1) {
-			System.out.println("Peer " + dest + " is offline. Cannot send");
+			// System.out.println("Peer " + dest + " is offline. Cannot send");
 
 		} catch (IOException e) {
 			// Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
+	
+	/**
+	 * Receive function called by application
+	 * @return: message: message at head of receive queue, or null if empty
+	 */
 
 	public Message receive() {
 		/*
@@ -444,6 +483,12 @@ public class MessagePasser {
 
 		return null;
 	}
+	
+	
+	/**
+	 * Receives a logger message
+	 * @return message: log message received
+	 */
 
 	public Message receiveLogger() {
 		/*
@@ -461,16 +506,13 @@ public class MessagePasser {
 
 		return null;
 	}
-
-	/*
-	 * public void logEvent(String msg, TimeStamp ts) { TimeStampedMessage
-	 * newTsMsg; try { parseConfig(); } catch (FileNotFoundException e) {
-	 * System.out.println(
-	 * "[LOG_EVENT]: reading config file failed, continuing with existing config"
-	 * ); } System.out.println("TS entered into logEvent" + ts.toString());
-	 * newTsMsg = new TimeStampedMessage(loggerName, "log", msg, ts);
-	 * this.send(newTsMsg); }
+	
+	/**
+	 * Matches a message to a list of rules
+	 * @param message: message to check
+	 * @param RuleType: type of rules
 	 */
+
 	public Rule matchRule(Message message, RuleType type) {
 		List<Rule> rules = null;
 
@@ -523,103 +565,20 @@ public class MessagePasser {
 		}
 		return null;
 	}
+	
 
-	private void parseConfig() throws FileNotFoundException {
-	    InputStream input = new FileInputStream(new File(configFilename));
-        Constructor constructor = new Constructor(Config.class);
-        SocketInfo mySocketInfo;
-	    Yaml yaml = new Yaml(constructor);
-	    
-	    /* SnakeYAML will parse and populate the Config object for us */
-	    config = (Config) yaml.load(input);
-	    /*some tricky hack to take care of Groups */
-	    for(Group g : this.config.getGroupList()) {
-	    	List<String> tmpList = g.getMemberList();
-	    	tmpList.clear();
-	    	for(Member e : g.getMembers()) {
-	    		tmpList.add(e.getMembername());
-	    	}
-	    }
-	    /* XXX: Assigning config.isLogical based on 
-	     * SocketInfo data is a big hack. I could not make it work 
-	     * with normal yaml.load, hence had to go with this hack. 
-	     */
-	    mySocketInfo = config.getConfigSockInfo(localName);
-	    if(mySocketInfo == null) {
-	    	/*** ERROR ***/
-	    	System.out.println("The local name is not correct.");
-	    	System.exit(0);
-	    }
-	    
-	    if (mySocketInfo.getClockType().equals("logical")) {
-	    	config.isLogical = true;
-	    } else {
-	    	config.isLogical = false;
-	    }
-
-	}
-
-	public void closeAllSockets() throws IOException {
-		// Auto-generated method stub
-		hostListenSocket.close();
-
-		/* Close all other sockets in the sockets map */
-		for (Map.Entry<SocketInfo, Socket> entry : sockets.entrySet()) {
-			entry.getValue().close();
-		}
-		for (Map.Entry<String, ObjectOutputStream> entry : outputStreamMap
-				.entrySet()) {
-			entry.getValue().close();
-		}
-	}
-
-	public ClockService getClockSer() {
-		return clockSer;
-	}
-
-	public void setClockSer(ClockService clockSer) {
-		this.clockSer = clockSer;
-	}
-
-	public String getLocalName() {
-		return localName;
-	}
-
-	public void setLocalName(String localName) {
-		this.localName = localName;
-	}
-
-	public void cleanUp() {
-		this.delayRecvQueue.clear();
-		this.delayRecvQueue.clear();
-		this.recvQueue.clear();
-		this.clockSer.cleanUp();
-
-		if (!this.config.isLogical) {
-			HashMap<String, Integer> map = this.clockSer.getTs()
-					.getVectorClock();
-			for (SocketInfo e : this.config.configuration) {
-				map.put(e.getName(), 0);
-			}
-		}
-	}
+	/**
+	 * Check if the message is multicast. If multicast check for correct 
+	 * sequence number order
+	 * @param msg: message received
+	 */
 
 	public void checkAdd(Message msg) {
 
 		if (msg.getKind().equals("NACK REPLY")) {
-
-System.out.println("NACK RELAY:");
-((TimeStampedMessage)msg).dumpMsg();
-for(NackItem n : this.allMsg.keySet())
-	System.out.println(n.toString() + " " + this.allMsg.get(n).toString());
-System.out.println("============");
-for(SrcGroup s : this.seqNums.keySet()) 
-	System.out.println(s.toString() + " " + this.seqNums.get(s).toString());
-
 			msg = (TimeStampedMessage) msg.getData();
 		}
 		if (msg.getGrpDest() != null) { // multicast message
-
 			SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getGrpDest());
 			int getNum = ((TimeStampedMessage) msg).getGrpSeqNum();
 			NackItem ni = new NackItem(srcGrp, getNum);
@@ -631,16 +590,22 @@ for(SrcGroup s : this.seqNums.keySet())
 				return;
 			} else if ((seenNum + 1) == getNum) { // in order. add to recvQueue
 				updateSequenceNumber(srcGrp);
-				addToRecvQueue(recvQueue, msg);
+				addToRecvQueue(msg);
 				updateHoldback(msg);
 			} else {
 				addToHoldBack(msg);
 				sendNACK();
 			}
 		} else { // regular message
-			addToRecvQueue(recvQueue, msg);
+			addToRecvQueue(msg);
 		}
 	}
+	
+	
+	/**
+	 * Adds message to correct holdback queue in order
+	 * @param msg: message received
+	 */
 
 	public void addToHoldBack(Message msg) {
 		SrcGroup srcGrp = new SrcGroup(msg.getSrc(), msg.getGrpDest());
@@ -670,15 +635,60 @@ for(SrcGroup s : this.seqNums.keySet())
 
 		return;
 	}
+	
+	
+	/**
+	 * Adds to receive queue in order
+	 * @param msg: message received
+	 */
+	
+	public void addToRecvQueue(Message msg) {
+		int i = 0, size = 0;
+		synchronized (recvQueue) {
+			size = recvQueue.size();
+			for (; i < size; i++) {
+				TimeStampedMessage tmp = (TimeStampedMessage) recvQueue.get(i);
+				if (((TimeStampedMessage) msg).getMsgTS().compare(
+						tmp.getMsgTS()) != TimeStampRelation.greaterEqual) {
+					break;
+				}
+			}
+			recvQueue.add(i, msg);
+		}
+	}
+	
+	/**
+	 * Updates the received sequence number for a unique pair of source/group
+	 * @param srcGrp: array of [source, group]
+	 */
+
 
 	public void updateSequenceNumber(SrcGroup srcGrp) {
 		int curr;
-		if(seqNums.containsKey(srcGrp)){
+		if (seqNums.containsKey(srcGrp)) {
 			curr = seqNums.get(srcGrp);
-		} else{
+		} else {
 			curr = 0;
 		}
 		seqNums.put(srcGrp, curr + 1);
+	}
+	
+	
+	/**
+	 * Updates the sequence number for the current user to send to a group
+	 * @param group: name of group
+	 */
+
+	public int updateSendSequenceNumber(String group) {
+		int curr;
+		if (sendSeqNums.containsKey(group)) {
+			curr = sendSeqNums.get(group);
+		} else {
+			curr = 0;
+		}
+		curr++;
+		sendSeqNums.put(group, curr);
+		return curr;
 	}
 
 	public void updateHoldback(Message msg) {
@@ -687,24 +697,31 @@ for(SrcGroup s : this.seqNums.keySet())
 			List<Message> messagesInGroup = holdBackMap.get(srcGrp);
 			while (!messagesInGroup.isEmpty()
 					&& (int) ((TimeStampedMessage) messagesInGroup.get(0))
-							.getGrpSeqNum() == (int) (seqNums.get(srcGrp) + 1)) {
+							.getGrpSeqNum() == (int) (seqNums.get(srcGrp) + 1)){
 				updateSequenceNumber(srcGrp);
-				addToRecvQueue(recvQueue, messagesInGroup.get(0));
+				addToRecvQueue(messagesInGroup.get(0));
 				messagesInGroup.remove(0);
 			}
 		}
 	}
+	
+	
+	/**
+	 * Sends NACKs for missing messages
+	 */
 
 	public void sendNACK() {
 
 		for (Group g : config.getGroupList()) {
 			if (g.getMemberList().contains(localName)) {
 				List<NackItem> nackContent = new ArrayList<NackItem>();
-				for(SocketInfo e : config.configuration) {
+				for (SocketInfo e : config.configuration) {
 					List<NackItem> nackContentSrc = new ArrayList<NackItem>();
-					SrcGroup srcGrp = new SrcGroup(e.getName(), g.getGroupName());
-				
-					if (holdBackMap.get(srcGrp) != null && !holdBackMap.get(srcGrp).isEmpty()) { 
+					SrcGroup srcGrp = new SrcGroup(e.getName(),
+							g.getGroupName());
+
+					if (holdBackMap.get(srcGrp) != null
+							&& !holdBackMap.get(srcGrp).isEmpty()) {
 						// something in holdback queue
 						List<Message> hbQueue = holdBackMap.get(srcGrp);
 						int seqNum = seqNums.get(srcGrp) + 1;
@@ -713,7 +730,7 @@ for(SrcGroup s : this.seqNums.keySet())
 						while (queueIt.hasNext()) {
 							Message curr = queueIt.next();
 							while (seqNum < ((TimeStampedMessage) curr)
-								.getGrpSeqNum()) {
+									.getGrpSeqNum()) {
 								NackItem nack = new NackItem(srcGrp, seqNum);
 								nackContent.add(nack);
 								nackContentSrc.add(nack);
@@ -722,34 +739,27 @@ for(SrcGroup s : this.seqNums.keySet())
 							seqNum++;
 						}
 					} else { // nothing in holdback queue, just NACK next
-/*
-for(SrcGroup s : this.seqNums.keySet())
-	System.out.println(s.getSrc() + " " + s.getGroupName() + " " + this.seqNums.get(s));
-System.out.println("=========\n" + srcGrp.getSrc() + " " + srcGrp.getGroupName());
-if(seqNums.containsKey(srcGrp)) {
-	System.out.println("we find it");
-}
-*/
 						NackItem nack = new NackItem(srcGrp,
-							seqNums.get(srcGrp) + 1);
+								seqNums.get(srcGrp) + 1);
 						nackContent.add(nack);
 						nackContentSrc.add(nack);
 					}
 					// send to original sender (might not be in group)
 					TimeStampedMessage nackMsgSrc = new TimeStampedMessage(
-						srcGrp.getSrc(), "NACK", nackContentSrc, null, this.localName);
+							srcGrp.getSrc(), "NACK", nackContentSrc, null,
+							this.localName);
 					nackMsgSrc.set_source(localName);
 					doSend(nackMsgSrc, srcGrp.getSrc());
 				}
 				TimeStampedMessage nackMsg = new TimeStampedMessage(
-						g.getGroupName(), "NACK", nackContent, null, this.localName);
+						g.getGroupName(), "NACK", nackContent, null,
+						this.localName);
 				nackMsg.set_source(localName);
 				for (String member : g.getMemberList()) {
 					nackMsg.setGrpDest(nackMsg.getDest());
 					nackMsg.setDest(member);
 					applyRulesSend(nackMsg, member);
 				}
-				//checkSend(nackMsg); // skips rules and TS setting
 			}
 		}
 	}
@@ -757,55 +767,93 @@ if(seqNums.containsKey(srcGrp)) {
 	public void getNACK(Message msg) {
 		@SuppressWarnings("unchecked")
 		List<NackItem> nackContent = (List<NackItem>) msg.getData();
-/*Debug: 
-System.out.println("nack items get from NACK");
-for(NackItem m : nackContent) {
-	System.out.println(m.toString());
-}
-System.out.println("==================");
-for(NackItem n : this.allMsg.keySet()) {
-	System.out.println(n.toString() + " * ");
-}
-*/
-		/*
-if(this.localName.equals("p1")) {
-	System.out.println("allMsg is ");
-	for(NackItem n : this.allMsg.keySet())
-		System.out.println(n.toString() + " " + this.allMsg.get(n));
-}
-*/
+
 		for (NackItem nack : nackContent) {
 			if (allMsg.containsKey(nack)) { // if has message
-/*
-if(this.localName.equals("p1"))
-	System.out.println("matched Item:" + nack.toString());
-	*/
-/*
-System.out.println("WHy we get a reply?!?!");
-System.out.println(nack.toString());
-System.out.println("Print out the allMsg map");
-for(NackItem n : this.allMsg.keySet())
-	System.out.println(n.toString() + " " + this.allMsg.get(n).toString());
-*/
 				Message nackReply = new TimeStampedMessage(msg.getSrc(),
 						"NACK REPLY", allMsg.get(nack), null, this.localName);
 				doSend(nackReply, nackReply.getDest());
 			}
 		}
 	}
+	
+	/**
+	 * Parses out the configuration file into the config object
+	 */
 
-	public void addToRecvQueue(LinkedList<Message> recvQueue, Message msg) {
-		int i = 0, size = 0;
-		synchronized (recvQueue) {
-			size = recvQueue.size();
-			for (; i < size; i++) {
-				TimeStampedMessage tmp = (TimeStampedMessage) recvQueue.get(i);
-				if (((TimeStampedMessage) msg).getMsgTS().compare
-						(tmp.getMsgTS()) != TimeStampRelation.greaterEqual) {
-					break;
-				}
+	private void parseConfig() throws FileNotFoundException {
+		InputStream input = new FileInputStream(new File(configFilename));
+		Constructor constructor = new Constructor(Config.class);
+		SocketInfo mySocketInfo;
+		Yaml yaml = new Yaml(constructor);
+
+		/* SnakeYAML will parse and populate the Config object for us */
+		config = (Config) yaml.load(input);
+		/* some tricky hack to take care of Groups */
+		for (Group g : this.config.getGroupList()) {
+			List<String> tmpList = g.getMemberList();
+			tmpList.clear();
+			for (Member e : g.getMembers()) {
+				tmpList.add(e.getMembername());
 			}
-			recvQueue.add(i, msg);
+		}
+		/*
+		 * XXX: Assigning config.isLogical based on SocketInfo data is a big
+		 * hack. I could not make it work with normal yaml.load, hence had to go
+		 * with this hack.
+		 */
+		mySocketInfo = config.getConfigSockInfo(localName);
+		if (mySocketInfo == null) {
+			/*** ERROR ***/
+			System.out.println("The local name is not correct.");
+			System.exit(0);
+		}
+
+		if (mySocketInfo.getClockType().equals("logical")) {
+			config.isLogical = true;
+		} else {
+			config.isLogical = false;
+		}
+
+	}
+	
+	
+	/**
+	 * Closes all the sockets
+	 */
+
+	public void closeAllSockets() throws IOException {
+		// Auto-generated method stub
+		hostListenSocket.close();
+
+		/* Close all other sockets in the sockets map */
+		for (Map.Entry<SocketInfo, Socket> entry : sockets.entrySet()) {
+			entry.getValue().close();
+		}
+		for (Map.Entry<String, ObjectOutputStream> entry : outputStreamMap
+				.entrySet()) {
+			entry.getValue().close();
+		}
+	}
+	
+
+	
+	/**
+	 * Clears out queues and resets clock
+	 */
+
+	public void cleanUp() {
+		this.delayRecvQueue.clear();
+		this.delayRecvQueue.clear();
+		this.recvQueue.clear();
+		this.clockSer.cleanUp();
+
+		if (!this.config.isLogical) {
+			HashMap<String, Integer> map = this.clockSer.getTs()
+					.getVectorClock();
+			for (SocketInfo e : this.config.configuration) {
+				map.put(e.getName(), 0);
+			}
 		}
 	}
 
@@ -817,27 +865,54 @@ for(NackItem n : this.allMsg.keySet())
 				+ ", config=" + config + "]";
 	}
 
+	public boolean getIsLogical() {
+		return this.config.isLogical;
+	}
+	
+	
+	/**
+	 * Setters and getters for variables
+	 */
+
+	public ClockService getClockSer() {
+		return clockSer;
+	}
+
+	public void setClockSer(ClockService clockSer) {
+		this.clockSer = clockSer;
+	}
+
+	public String getLocalName() {
+		return localName;
+	}
+
+	public void setLocalName(String localName) {
+		this.localName = localName;
+	}
+	
+
 	public Map<SrcGroup, List<Message>> getHoldBackMap() {
 		return holdBackMap;
 	}
+
 	public void setHoldBackMap(Map<SrcGroup, List<Message>> holdBackMap) {
 		this.holdBackMap = holdBackMap;
 	}
+
 	public Map<NackItem, Message> getAllMsg() {
 		return allMsg;
 	}
+
 	public void setAllMsg(Map<NackItem, Message> allMsg) {
 		this.allMsg = allMsg;
 	}
+
 	public Map<SrcGroup, Integer> getSeqNums() {
 		return seqNums;
 	}
+
 	public void setSeqNums(Map<SrcGroup, Integer> seqNums) {
 		this.seqNums = seqNums;
-	}
-	
-	public boolean getIsLogical() {
-		return this.config.isLogical;
 	}
 
 }

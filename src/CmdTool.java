@@ -1,6 +1,9 @@
-/* 18-842 Distributed Systems
- * Lab 2
- * Group 30 - aboos & dil1
+/**
+ * @file CmdTool.java
+ * @brief Interactive application with user
+ * @author  aboos
+ * 			dil1
+ * @date 02/09/2014
  */
 
 import java.io.BufferedReader;
@@ -57,10 +60,6 @@ public class CmdTool {
             else if(cmdInput.equals("cleanup")) {
             	System.out.println("we clean up the messagePasser and ClockService");
             	this.msgPasser.cleanUp();
-            }
-            else if(cmdInput.equals("startthread")) {
-            	System.out.println("Start a periodically checking thread");
-            	this.msgPasser.startCheckingThread();
             }
             else if(cmdInput.equals("printAllMsg")) {
             	System.out.println("The Map of allMsg is");

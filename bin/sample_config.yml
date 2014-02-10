@@ -27,7 +27,6 @@ sendRules :
     - action : drop
       src : p1  
       dest : p3
-      kind : Lookup
 
     - action : drop
       src : p1
@@ -48,6 +47,7 @@ sendRules :
 
     - action : delay
       kind : log    
+      
 receiveRules :    
     - action : drop
       src : p2

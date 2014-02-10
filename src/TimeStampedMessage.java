@@ -46,12 +46,12 @@ public class TimeStampedMessage extends Message {
 	}
 	
 	public void dumpMsg(){
-		System.out.println("Msg: src: " + super.getSrc());
-		System.out.println("Msg: dest: " + super.getDest());
-		System.out.println("Msg: Kind: " + super.getKind());
-		System.out.println("Msg: seqnum: " + super.getSeqNum());
-		System.out.println("Msg: data:  " + super.getData());
-		System.out.println("Msg: grpSeqNum" + this.grpSeqNum);
+		System.out.println("Src: " + super.getSrc());
+		System.out.println("Dest: " + super.getDest());
+		System.out.println("Kind: " + super.getKind());
+		System.out.println("Sequence Number: " + super.getSeqNum());
+		System.out.println("Data: " + super.getData());
+		System.out.println("Group Sequence Number: " + this.grpSeqNum);
 		//System.out.println("Msg: TS:  " + msgTS.toString());
 	}
 

@@ -1,6 +1,9 @@
-/* 18-842 Distributed Systems
- * Lab 2
- * Group 30 - aboos & dil1
+/**
+ * @file Config.java
+ * @brief Object to hold the paramters parsed from the configuration file
+ * @author  aboos
+ * 			dil1
+ * @date 02/09/2014
  */
 
 import java.util.List;
