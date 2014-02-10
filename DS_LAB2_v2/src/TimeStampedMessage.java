@@ -49,7 +49,7 @@ public class TimeStampedMessage extends Message implements Serializable
 	
 	public TimeStampedMessage clone()  {
 		TimeStampedMessage copy = new TimeStampedMessage(this.getGroup(), this.getKind(), 
-				this.getData(), this.start_num, this.seqNum, this.getTimeStamp());
+				this.getData(), this.start_num, this.length, this.getTimeStamp());
 		copy.setDest(this.getDest());
 		copy.setSrc(this.getSrc());
 		copy.setSeqNum(this.getSeqNum());

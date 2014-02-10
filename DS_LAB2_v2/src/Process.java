@@ -87,7 +87,7 @@ public class Process
 					}
 					
 					//msg = new Message(commandArgs[1], commandArgs[2], data.toString());
-					msg = new TimeStampedMessage(commandArgs[1], commandArgs[2], data.toString(), 0, 1,
+					msg = new TimeStampedMessage(commandArgs[1], commandArgs[2], data.toString(), mpasser.seqNum, 1,
 									args[2], mpasser.getNbrOfProcesses(), mpasser.getSystemTimeStamp());
 					msg.setTimeStamp(mpasser.getSystemTimeStamp());
 					

@@ -470,8 +470,9 @@ public class MessagePasser
 		//First apply rules for received message
 		checkConfigUpdates();
 		String rule = processRules(message, "receive", delayedInMsg, null, array);
-		
+		System.out.println("process multicast meesage");
 		if (rule.equalsIgnoreCase("drop") || rule.equalsIgnoreCase("delay")) {
+			System.out.println("message " + rule );
 			return;
 		}
 		
@@ -483,7 +484,6 @@ public class MessagePasser
 				/* Process ACK message, if all ack are received, 
 				/* will put corresponding message into deliveryQueue 
 				 */
-				System.out.println("Receive ACK message");
 				processACK(msg);
 			}
 			 else
@@ -515,6 +515,7 @@ public class MessagePasser
 						 //updateACKMap(ack);
 						 
 						 sendMulticast(ack, false);
+						 processACK(msg);
 						 
 					 }
 					 
@@ -615,7 +616,7 @@ public class MessagePasser
     	
     	if (ACKList != null) {
     		ACKList.set(srcPid, ACKList.get(srcPid) + 1);
-    		//System.out.println("set pid " + srcPid + ACKList.get(srcPid));
+    		System.out.println("set ACKMap as: " + msg_key + " " + ACKList);
     	}
     	else
     	{
@@ -625,7 +626,7 @@ public class MessagePasser
     		}
     		ACKList.set(srcPid, 1);	// This could not set value at index_pid, out_of_size error!
     		ACKMap.put(msg_key, ACKList);
-    		//System.out.println("set pid " + srcPid + ": 1");
+    		System.out.println("set ACKMap as: " + msg_key + " " + ACKList);
     	}
     }
     
@@ -636,10 +637,13 @@ public class MessagePasser
 	
 	private void processACK(TimeStampedMessage ack_msg)
 	{
+		System.out.println("Proccess ACK");
 		String msg_key = new String(ack_msg.getOriginalSrc()+ ack_msg.getSeqNum());
 		
 		boolean checkACKs = false;
-		updateACKMap(ack_msg);
+		if (ack_msg.getKind().equals("ACK")) {
+			updateACKMap(ack_msg);
+		}
 		
 		ArrayList<Integer> ACKList = null;
 		String actual_key = null;
@@ -652,11 +656,14 @@ public class MessagePasser
     		}
     	}
     	
-		System.out.println(ACKList);
+    	System.out.println("Actual key: " + actual_key + ACKList);
 		String groupname = ack_msg.getGroup();
 		ArrayList<String> grp_members = this.groups.get(groupname);
 		int dest_pid;
 		
+		if (ACKList == null) {
+			return;
+		}
 		// check whether all ACKs are in 
 		for(int i=0; i<grp_members.size(); i++)
 		{	
@@ -664,6 +671,7 @@ public class MessagePasser
 		
 			if (dest_pid != pid) {
 				//A node doesn't send ACK to itself
+				System.out.println("dest_pid: " + dest_pid + "; msg_length: "+ ack_msg.getMessageLength());
 				if(ACKList.get(dest_pid) == ack_msg.getMessageLength())
 					checkACKs = true;
 				else
@@ -673,7 +681,7 @@ public class MessagePasser
 				}
 			}
 		}
-		
+		System.out.println("check ACK is " + checkACKs);
 		if(checkACKs)
 		{
 			System.out.println("All ACK received.");
@@ -688,26 +696,37 @@ public class MessagePasser
 						multicastSendQueue.remove(message);
 						//timeoutServ.get(message).cancel();
 						//timeoutServ.remove(message);
+						ACKMap.remove(actual_key);
 						break;
+						
 					}
 			}
 			else {
-				synchronized(holdbackQueue) {
+				boolean deliverFlag = false;
+				ack_msg.print();
 					for (int i = 0; i < holdbackQueue.size(); i++) {
 						TimeStampedMessage m = holdbackQueue.get(i);
-						if (m.getSeqNum() == ack_msg.getSeqNum() && m.getOriginalSrc().equalsIgnoreCase(ack_msg.getOriginalSrc())); {
+						if ((m.getSeqNum() == ack_msg.getSeqNum()) &&
+								(m.getOriginalSrc().equalsIgnoreCase(ack_msg.getOriginalSrc()))) {
+							System.out.print(i + "th message is correct:  ");
+							m.print();
 							addToDeliveryQueue(m);
 							holdbackQueue.remove(i);
+							deliverFlag = true;
+							ACKMap.remove(actual_key);
 							break;
 						}
 					}
-				}
+					if (!deliverFlag) {
+						System.out.println("nothing to deliver");
+					}
+				
 
 				//addToDeliveryQueue(holdbackQueue);    // check!!!!! not all messages should be xfered
 														// change this function to add a single message in deliveryQueue
 			}
 			// remove message from ACKMap
-			ACKMap.remove(actual_key);
+			
 			//System.out.println("Remove " + actual_key + " from ACKMap");
 		}	
 	}

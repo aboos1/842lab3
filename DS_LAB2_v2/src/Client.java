@@ -70,7 +70,7 @@ public class Client extends Thread
 					//Sender sender = new Sender(message, outs.get(message.getDest()));
 					//sender.start();
 					System.out.println("Sending message #" + message.getSeqNum() + " (" + message.getKind() + ")"
-										+ " from " + message.getSrc() + "to " + message.getDest() +": " + message.getData());
+										+ " from " + message.getSrc() + " to " + message.getDest() +": " + message.getData());
 					try 
 					{
 						outs.get(dest).writeObject(message);
