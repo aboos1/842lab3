@@ -5,11 +5,11 @@ import java.util.LinkedList;
 public class Receiver extends Thread {
 	
 	private Socket socket;
-	private LinkedList<Message> in_buffer;
+	private LinkedList<TimeStampedMessage> in_buffer;
 	private ObjectInputStream in;
 	private MessagePasser mp;
 	
-	public Receiver(Socket aSocket, LinkedList<Message> aBuffer, MessagePasser mp) 
+	public Receiver(Socket aSocket, LinkedList<TimeStampedMessage> aBuffer, MessagePasser mp) 
 	{
 		this.socket = aSocket;
 		this.in_buffer = aBuffer;
@@ -29,13 +29,16 @@ public class Receiver extends Thread {
 	
 		try {
 			in = new ObjectInputStream(socket.getInputStream());
-			Message m;
+			TimeStampedMessage m;
 			while(true) {
 
 				Thread.sleep(100);
 
-				m = (Message) in.readObject();
-				in_buffer.add(m);
+				m = (TimeStampedMessage) in.readObject();
+				synchronized(in_buffer) {
+					in_buffer.add(m);
+				}
+				mp.processInBuffer();
 				//System.out.println("in receiver " + mp.getPid());
 				if (mp.getPid() == 4)  // logger
 					mp.receive();

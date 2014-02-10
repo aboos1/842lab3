@@ -49,7 +49,7 @@ public class Server extends Thread {
 						
 						Socket clientSocket = serverSocket.accept();
 						csockets.add(clientSocket);
-						System.out.println("new connection from " + clientSocket.getRemoteSocketAddress().toString());
+						//System.out.println("new connection from " + clientSocket.getRemoteSocketAddress().toString());
 						Receiver receiver = new Receiver(clientSocket, mpasser.getInBuffer(), mpasser);
 						receivers.add(receiver);
 						receiver.start();

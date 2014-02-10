@@ -10,6 +10,8 @@ public class TimeStampedMessage extends Message implements Serializable
 			TimeStamp ts)
 	{
 		super(group, kind, data, start, length);
+		timeStamp = new TimeStamp(ts.getClockServiceType(), ts.getTimeStamp().size());	
+		logsTimeStamp = new TimeStamp(ts.getClockServiceType(), ts.getTimeStamp().size());
 		setTimeStamp(ts);
 	}
 	
@@ -33,7 +35,7 @@ public class TimeStampedMessage extends Message implements Serializable
 		return logsTimeStamp;
 	}
 	
-	private void setTimeStamp(TimeStamp ts)
+	public void setTimeStamp(TimeStamp ts)
 	{
 		for(int i = 0; i <timeStamp.getTimeStamp().size(); i++)
 			timeStamp.getTimeStamp().set(i, ts.getTimeStamp().get(i));

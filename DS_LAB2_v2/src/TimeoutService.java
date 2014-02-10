@@ -8,9 +8,9 @@ import java.util.TimerTask;
 public class TimeoutService {
 	Timer timer;
 	private MessagePasser mpasser;
-	private Message message;
+	private TimeStampedMessage message;
 	
-	public TimeoutService(int seconds, MessagePasser mp, Message m) {
+	public TimeoutService(int seconds, MessagePasser mp, TimeStampedMessage m) {
 		timer = new Timer(); 
 		mpasser = mp;
 		message = m;

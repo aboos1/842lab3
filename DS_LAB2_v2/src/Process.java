@@ -6,7 +6,7 @@ public class Process
 {
 	public static void main(String[] args) 
 	{
-		Message msg;
+		TimeStampedMessage msg;
 		LinkedList<TimeStampedMessage> logs;
 		
 		if(args.length != 3) 
@@ -62,19 +62,13 @@ public class Process
 				}
 				else if (command.equals("r")) 
 				{
-					Message aMessage = mpasser.receive();
+					TimeStampedMessage aMessage = mpasser.receive();
 					
 					if (aMessage != null) 
 					{
-							System.out.println("Message #" + aMessage.getSeqNum() + " (" + aMessage.getKind() + ")"
-										+ " from " + aMessage.getSrc() + ": " + aMessage.getData());
-							
-							if(aMessage instanceof TimeStampedMessage)
-							{
-								System.out.println("message send time stamp is: " +
-							                       ((TimeStampedMessage)aMessage).
-										getTimeStamp().getTimeStamp());
-							}
+							System.out.println("/***** Message #" + aMessage.getSeqNum() + " (" + aMessage.getKind() + ")"
+									+ " from " + aMessage.getSrc() + ": " + aMessage.getData() +
+									"with timestamp : " + aMessage.getTimeStamp().getTimeStamp() + " *****/");
 					}
 				}
 				else if (commandArgs[0].equals("s")) 
@@ -93,9 +87,9 @@ public class Process
 					}
 					
 					//msg = new Message(commandArgs[1], commandArgs[2], data.toString());
-					msg = new TimeStampedMessage(commandArgs[1], commandArgs[2], data.toString(), 0, 0,
+					msg = new TimeStampedMessage(commandArgs[1], commandArgs[2], data.toString(), 0, 1,
 									args[2], mpasser.getNbrOfProcesses(), mpasser.getSystemTimeStamp());
-					//((TimeStampedMessage) msg).setTimeStamp(mpasser.getSystemTimeStamp());
+					msg.setTimeStamp(mpasser.getSystemTimeStamp());
 					
 					mpasser.send(msg); //dest, kind, data
 					if(msg instanceof TimeStampedMessage)

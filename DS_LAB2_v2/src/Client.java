@@ -70,7 +70,7 @@ public class Client extends Thread
 					//Sender sender = new Sender(message, outs.get(message.getDest()));
 					//sender.start();
 					System.out.println("Sending message #" + message.getSeqNum() + " (" + message.getKind() + ")"
-										+ " from " + message.getSrc() + ": " + message.getData());
+										+ " from " + message.getSrc() + "to " + message.getDest() +": " + message.getData());
 					try 
 					{
 						outs.get(dest).writeObject(message);
@@ -87,7 +87,7 @@ public class Client extends Thread
 					try 
 					{
 						// set up a new connection
-						System.out.println(message.getHostName() + " " + message.getPort());
+						//System.out.println(message.getHostName() + " " + message.getPort());
 						Socket socket = new Socket(message.getHostName(), message.getPort());
 						ObjectOutputStream oout = new ObjectOutputStream(socket.getOutputStream());
 						
@@ -99,7 +99,8 @@ public class Client extends Thread
 						//Sender sender = new Sender(message, oout);
 						//sender.start();
 						System.out.println("Sending message #" + message.getSeqNum() + " (" + message.getKind() + ")"
-											+ " from " + message.getSrc() + ": " + message.getData());
+											+ " from " + message.getSrc() + " to " + message.getDest() + "(" +
+											message.getGroup() +") : " + message.getData());
 										
 						oout.writeObject(message);
 						oout.flush();
