@@ -83,6 +83,8 @@ public class MessagePasser
 	private long fileModTime;
 	private int pid;
 	
+	public boolean enableTimeoutResend = false;
+	
 	public MessagePasser(String configuration_filename, String local_name)
 	{
 		configFileName = configuration_filename;
@@ -285,8 +287,10 @@ public class MessagePasser
 			multicastSendQueue.add(message);
 			
 			//Start timer
-			//TimeoutService ts = new TimeoutService(30, this, message);
-			//timeoutServ.put(message, ts);
+			if (this.enableTimeoutResend) {
+				TimeoutService ts = new TimeoutService(30, this, message);
+				timeoutServ.put(message, ts);
+			}
 			
 			if(message instanceof TimeStampedMessage)
 			{
@@ -697,8 +701,10 @@ public class MessagePasser
 						//if(message.getSrc().equalsIgnoreCase(msg.getOriginalSrc()) && message.getSeqNum() == (Integer)msg.getData())	
 						System.out.println("Sender remove message from sendQueue");
 						multicastSendQueue.remove(message);
-						//timeoutServ.get(message).cancel();
-						//timeoutServ.remove(message);
+						if (this.enableTimeoutResend) {
+							timeoutServ.get(message).cancel();
+							timeoutServ.remove(message);
+						}
 						ACKMap.remove(actual_key);
 						break;
 						

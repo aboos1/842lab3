@@ -28,6 +28,8 @@ public class Process
 		}
 		mpasser.setPid();       // sets process' ID
 		
+		mpasser.enableTimeoutResend = false;
+		
 		//System.out.println("my pid is: " + mpasser.getPid());
 		mpasser.initSystemTimeStamp(args[2], mpasser.getNbrOfProcesses());  // initialize reference time
 		
