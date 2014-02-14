@@ -9,6 +9,7 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -103,6 +104,13 @@ public class ResourceRequestor {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         Message msg = null;
         LogMessage logMsg = null;
+        String groupName = msgPasser.getLocalName() + "_group";
+        ArrayList<String> groupMembers = msgPasser.getGroup();
+        
+        // Initialize the okay received map
+        for(String member : groupMembers){
+        	okay_recv.put(member, 0);
+        }
         
         while (!cmdInput.equals("quit")) {
         	

@@ -885,6 +885,15 @@ public class MessagePasser {
 	public String getLocalName() {
 		return localName;
 	}
+	
+	public ArrayList<String> getGroup() {
+		String groupname = localName + "_group";
+		ArrayList<String> members = new ArrayList<String>();
+		for(String membername : config.getGroup(groupname).getMemberList()){
+			members.add(membername);
+		}
+		return members;
+	}
 
 	public void setLocalName(String localName) {
 		this.localName = localName;
