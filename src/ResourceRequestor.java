@@ -10,7 +10,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ResourceRequestor {
 	/*
@@ -31,11 +34,56 @@ public class ResourceRequestor {
 	int sent_count;
 	int recv_count;
 	Map<String,Integer> okay_recv = new HashMap<String,Integer>();
+	ConcurrentLinkedQueue<TimeStampedMessage> requestQueue = new ConcurrentLinkedQueue<TimeStampedMessage>();
+	
+	public class receiveRequest extends Thread{
+		public receiveRequest(){
+			
+		}
+		
+		public void run(){
+			while(true){
+				TimeStampedMessage ts;
+				if((ts = (TimeStampedMessage) msgPasser.receive()) != null){
+					if(ts.getKind().equalsIgnoreCase("request")){
+						if(IN_CS == true || VOTED == true){
+							queueRequest(ts);
+						} else {
+							sendReply(ts.getSrc());
+							VOTED = true;
+						}
+					} else if(ts.getKind().equalsIgnoreCase("release")){
+						if(!requestQueue.isEmpty()){
+							TimeStampedMessage req = requestQueue.poll();
+							sendReply(req.getSrc());
+							VOTED = true;
+						} else {
+							VOTED = false;
+						}
+					} else {
+						System.out.println("Received non-standard message");
+					}
+				}
+			}
+		}
+		
+		private void queueRequest(TimeStampedMessage msg){
+			
+		}
+		
+		private void sendReply(String dest){
+			
+		}
+	}
+	
+	
 	
 	
 	public ResourceRequestor(MessagePasser msgPasser) {
 		this.msgPasser = msgPasser;
+		new receiveRequest().start();
 	}
+	
 	public void executing() {
 		String cmdInput = new String();
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
