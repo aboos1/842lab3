@@ -1,69 +1,75 @@
 configuration :
-    - name : p1 
+    - name : a
       ip: 127.0.0.1  
-      port : 49996
+      port : 50000
       clockType: vector
-    - name : p2 
+    - name : b
       ip : 127.0.0.1  
-      port : 42558   
+      port : 50001  
       clockType: vector
-    - name : p3  
+    - name : c
       ip : 127.0.0.1    
+      port : 50002  
+      clockType: vector
+    - name : d
+      ip : 127.0.0.1   
       port : 50003  
       clockType: vector
-    - name : p4
+    - name : e
       ip : 127.0.0.1   
-      port : 59877  
+      port : 50004 
+      clockType: vector
+    - name : f
+      ip : 127.0.0.1   
+      port : 50005
+      clockType: vector
+    - name : g
+      ip : 127.0.0.1   
+      port : 50006
       clockType: vector
     - name : logger
       ip : 127.0.0.1   
-      port : 59879 
+      port : 50011 
       clockType: vector
-sendRules :
-    - action : delay
-      dest : p4
-      kind : HTTP_REPLY
-    
-    - action : drop
-      src : p1  
-      dest : p3
-
-    - action : drop
-      src : p1
-      dest : p2
-      kind : Ack
-
-    - action : drop
-      src : p1
-      kind : Ran
-
-    - action : duplicate
-      kind : Request
-      dest : p4
-
-    - action : duplicate
-      kind : Random
-      dest : p2
-
-    - action : delay
-      kind : log    
+sendRules : 
       
 receiveRules :    
-    - action : drop
-      src : p2
-      dest : p4
-      duplicate : true
 
-    - action : delay
-      dest : p4
-      kind : HTTP_DELAY
 groupList : 
-    - groupName : Group1
+    - groupName : a_group
       members :
-        - membername : p1
-        - membername : p2
+        - membername : a
+        - membername : b
+        - membername : c
 
-    - groupName : Group2
+    - groupName : b_group
       members : 
-        - membername : p2
-        - membername : p3
+        - membername : b
+        - membername : d
+        - membername : f
+    - groupName : c_group
+      members : 
+        - membername : c
+        - membername : e
+        - membername : f
+    - groupName : d_group
+      members :
+        - membername : a
+        - membername : d
+        - membername : e
+
+    - groupName : e_group
+      members : 
+        - membername : b
+        - membername : e
+        - membername : g
+    - groupName : f_group
+      members : 
+        - membername : a
+        - membername : f
+        - membername : g
+    - groupName : g_group
+      members : 
+        - membername : c
+        - membername : d
+        - membername : g

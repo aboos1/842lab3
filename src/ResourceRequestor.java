@@ -13,7 +13,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class ResourceRequestor {
 	/*
@@ -34,11 +33,12 @@ public class ResourceRequestor {
 	int sent_count;
 	int recv_count;
 	Map<String,Integer> okay_recv = new HashMap<String,Integer>();
-	ConcurrentLinkedQueue<TimeStampedMessage> requestQueue = new ConcurrentLinkedQueue<TimeStampedMessage>();
+	List<TimeStampedMessage> requestQueue = new LinkedList<TimeStampedMessage>();
 	
 	public class receiveRequest extends Thread{
-		public receiveRequest(){
-			
+		MessagePasser msgPasser;
+		public receiveRequest(MessagePasser msgPasser){
+			this.msgPasser = msgPasser;
 		}
 		
 		public void run(){
@@ -54,11 +54,16 @@ public class ResourceRequestor {
 						}
 					} else if(ts.getKind().equalsIgnoreCase("release")){
 						if(!requestQueue.isEmpty()){
-							TimeStampedMessage req = requestQueue.poll();
+							TimeStampedMessage req = requestQueue.get(0);
+							requestQueue.remove(0);
 							sendReply(req.getSrc());
 							VOTED = true;
 						} else {
 							VOTED = false;
+						}
+					} else if(ts.getKind().equalsIgnoreCase("okay")){
+						if(WANTED == true){
+							okay_recv.put(ts.getSrc(), 1);
 						}
 					} else {
 						System.out.println("Received non-standard message");
@@ -68,20 +73,29 @@ public class ResourceRequestor {
 		}
 		
 		private void queueRequest(TimeStampedMessage msg){
-			
+			int i = 0, size = 0;
+			synchronized (requestQueue) {
+				size = requestQueue.size();
+				for (; i < size; i++) {
+					TimeStampedMessage tmp = (TimeStampedMessage) requestQueue.get(i);
+					if (((TimeStampedMessage) msg).getMsgTS().compare(
+							tmp.getMsgTS()) != TimeStampRelation.greaterEqual) {
+						break;
+					}
+				}
+				requestQueue.add(i, msg);
+			}
 		}
 		
 		private void sendReply(String dest){
-			
+			TimeStampedMessage reply = new TimeStampedMessage(dest, "okay", null, null, this.msgPasser.getLocalName());
+			msgPasser.send(reply);
 		}
 	}
 	
-	
-	
-	
 	public ResourceRequestor(MessagePasser msgPasser) {
 		this.msgPasser = msgPasser;
-		new receiveRequest().start();
+		new receiveRequest(msgPasser).start();
 	}
 	
 	public void executing() {
