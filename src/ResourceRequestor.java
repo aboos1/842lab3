@@ -104,7 +104,6 @@ public class ResourceRequestor {
         BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
         Message msg = null;
         LogMessage logMsg = null;
-        String groupName = msgPasser.getLocalName() + "_group";
         ArrayList<String> groupMembers = msgPasser.getGroup();
         
         // Initialize the okay received map
