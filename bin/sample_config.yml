@@ -1,0 +1,75 @@
+configuration :
+    - name : a
+      ip: 127.0.0.1  
+      port : 50000
+      clockType: vector
+    - name : b
+      ip : 127.0.0.1  
+      port : 50001  
+      clockType: vector
+    - name : c
+      ip : 127.0.0.1    
+      port : 50002  
+      clockType: vector
+    - name : d
+      ip : 127.0.0.1   
+      port : 50003  
+      clockType: vector
+    - name : e
+      ip : 127.0.0.1   
+      port : 50004 
+      clockType: vector
+    - name : f
+      ip : 127.0.0.1   
+      port : 50005
+      clockType: vector
+    - name : g
+      ip : 127.0.0.1   
+      port : 50006
+      clockType: vector
+    - name : logger
+      ip : 127.0.0.1   
+      port : 50011 
+      clockType: vector
+sendRules : 
+      
+receiveRules :    
+
+groupList : 
+    - groupName : a_group
+      members :
+        - membername : a
+        - membername : b
+        - membername : c
+
+    - groupName : b_group
+      members : 
+        - membername : b
+        - membername : d
+        - membername : f
+    - groupName : c_group
+      members : 
+        - membername : c
+        - membername : e
+        - membername : f
+    - groupName : d_group
+      members :
+        - membername : a
+        - membername : d
+        - membername : e
+
+    - groupName : e_group
+      members : 
+        - membername : b
+        - membername : e
+        - membername : g
+    - groupName : f_group
+      members : 
+        - membername : a
+        - membername : f
+        - membername : g
+    - groupName : g_group
+      members : 
+        - membername : c
+        - membername : d
+        - membername : g
