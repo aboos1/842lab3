@@ -97,8 +97,15 @@ public class ResourceRequestor {
 				for (; i < size; i++) {
 					TimeStampedMessage tmp = (TimeStampedMessage) requestQueue.get(i);
 					if (((TimeStampedMessage) msg).getMsgTS().compare(
-							tmp.getMsgTS()) != TimeStampRelation.greaterEqual) {
-						break;
+							tmp.getMsgTS()) != TimeStampRelation.lessEqual) {
+						if(((TimeStampedMessage) msg).getMsgTS().compare(
+								tmp.getMsgTS()) == TimeStampRelation.concurrent){
+							if(msg.getSrc().compareToIgnoreCase(tmp.getSrc()) < 0){
+								break;
+							}
+						} else {
+							break;
+						}
 					}
 				}
 				requestQueue.add(i, msg);
