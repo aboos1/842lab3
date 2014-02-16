@@ -47,6 +47,7 @@ public class ResourceRequestor {
 			while(true){
 				TimeStampedMessage ts;
 				if((ts = (TimeStampedMessage) msgPasser.receive()) != null){
+					recv_count++;
 					if(ts.getKind().equalsIgnoreCase("request")){
 						if(IN_CS == true || VOTED == true){
 							queueRequest(ts);

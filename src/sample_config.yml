@@ -2,35 +2,35 @@ configuration :
     - name : a
       ip: 127.0.0.1  
       port : 50000
-      clockType: vector
+      clockType: logical
     - name : b
       ip : 127.0.0.1  
       port : 50001  
-      clockType: vector
+      clockType: logical
     - name : c
       ip : 127.0.0.1    
       port : 50002  
-      clockType: vector
+      clockType: logical
     - name : d
       ip : 127.0.0.1   
       port : 50003  
-      clockType: vector
+      clockType: logical
     - name : e
       ip : 127.0.0.1   
       port : 50004 
-      clockType: vector
+      clockType: logical
     - name : f
       ip : 127.0.0.1   
       port : 50005
-      clockType: vector
+      clockType: logical
     - name : g
       ip : 127.0.0.1   
       port : 50006
-      clockType: vector
+      clockType: logical
     - name : logger
       ip : 127.0.0.1   
       port : 50011 
-      clockType: vector
+      clockType: logical
 sendRules : 
       
 receiveRules :    
