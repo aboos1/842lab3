@@ -117,38 +117,6 @@ public class ResourceRequestor {
 			msgPasser.send(reply);
 		}
 	}
-	
-	
-	/*
-	public class CSHandler extends Thread
-	{
-		public void run()
-		{
-			while(true)
-			{
-				while(!IN_CS)  //sleep while waiting to enter cs
-				{
-					try {
-						sleep(200);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-				}
-				System.out.println("using resource for 30s");
-				try {
-					sleep(30000);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-					
-				releaseResource();
-				System.out.println("done releasing resource. IN_CS is now " + IN_CS);
-			}
-		}
-		
-	}*/
 		
 	private synchronized void releaseResource()
 		{
@@ -165,7 +133,6 @@ public class ResourceRequestor {
 	public ResourceRequestor(MessagePasser msgPasser) {
 		this.msgPasser = msgPasser;
 		new receiveRequest(msgPasser).start();
-		//new CSHandler().start();
 	}
 	
 	public void sendForResource(String message_king)
