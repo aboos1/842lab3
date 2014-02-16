@@ -22,6 +22,7 @@ public class ResourceRequestor {
 	 * ps: print the information of current MessagePasser
 	 * send command: dest <kind> <data>
 	 * send log command : log <dest> <kind> <data>
+	 * request resource command : request resource
 	 * receive command: receive
 	 * receive log command : receive log
 	 * 
@@ -49,26 +50,42 @@ public class ResourceRequestor {
 					if(ts.getKind().equalsIgnoreCase("request")){
 						if(IN_CS == true || VOTED == true){
 							queueRequest(ts);
+							System.out.println("Received and queued request from " + ts.getSrc());
 						} else {
 							sendReply(ts.getSrc());
 							VOTED = true;
+							System.out.println("Accepted request from " + ts.getSrc());
 						}
 					} else if(ts.getKind().equalsIgnoreCase("release")){
+						System.out.println("Received release from " + ts.getSrc());
 						if(!requestQueue.isEmpty()){
 							TimeStampedMessage req = requestQueue.get(0);
 							requestQueue.remove(0);
 							sendReply(req.getSrc());
 							VOTED = true;
+							System.out.println("Processed queued request from " + req.getSrc()
+									+ " with timestamp " + req.getMsgTS());
 						} else {
 							VOTED = false;
 						}
-					} else if(ts.getKind().equalsIgnoreCase("okay")){
-						if(WANTED == true){
-							okay_recv.put(ts.getSrc(), 1);
+					} else if(ts.getKind().equalsIgnoreCase("okay"))
+					{
+						System.out.println("received OK from " + ts.getSrc());
+						if(WANTED == true)
+						{
+							okay_recv.put(ts.getSrc(), 1);							
+							if(receivedAllOKs())
+							{
+								IN_CS = true;
+								System.out.println("in cs now...");
+							}
 						}
-					} else {
+					} 
+					else
+					{
 						System.out.println("Received non-standard message");
 					}
+					recv_count++;
 				}
 			}
 		}
@@ -94,9 +111,70 @@ public class ResourceRequestor {
 		}
 	}
 	
+	public class CSHandler extends Thread
+	{
+		public void run()
+		{
+			while(true)
+			{
+				while(!IN_CS)  //sleep while waiting to enter cs
+				{
+					try {
+						sleep(200);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+				System.out.println("using resource for 30s");
+				try {
+					sleep(30000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+					
+				releaseResource();
+				System.out.println("done releasing resource. IN_CS is now " + IN_CS);
+			}
+		}
+		
+		private synchronized void releaseResource()
+		{
+			System.out.println(msgPasser.getLocalName() + " is releasing resource now");
+			// clear okay_rcv
+			for(String member : msgPasser.getGroup())
+				okay_recv.put(member, 0);
+						
+			WANTED = false;
+			IN_CS = false;
+			sendForResource("release");
+		}
+		
+	}
+	
 	public ResourceRequestor(MessagePasser msgPasser) {
 		this.msgPasser = msgPasser;
 		new receiveRequest(msgPasser).start();
+		new CSHandler().start();
+	}
+	
+	public void sendForResource(String message_king)
+	{
+		WANTED = true;
+		TimeStampedMessage msg = new TimeStampedMessage(msgPasser.getLocalName() + "_group", 
+				message_king, null, msgPasser.getClockSer().getTs(), msgPasser.getLocalName());
+		sent_count++;
+		msgPasser.send(msg);
+	}
+	
+	public boolean receivedAllOKs()
+	{
+		for(String key : okay_recv.keySet())
+			if(okay_recv.get(key) == 0)
+				return false;
+		
+		return true;
 	}
 	
 	public void executing() {
@@ -174,8 +252,10 @@ public class ResourceRequestor {
 ((TimeStampedMessage)msg).dumpMsg();
             		}
             	} 
-            	else if(array.length == 2) {
-            		if(array[0].equals("receive") && array[1].equals("log")) {
+            	else if(array.length == 2) 
+            	{
+            		if(array[0].equals("receive") && array[1].equals("log")) 
+            		{
             			msg = this.msgPasser.receive();
             			if(msg == null) {
             				System.out.println("Nothing to pass to Aplication!");
@@ -189,7 +269,14 @@ public class ResourceRequestor {
             			}
             				
             		}
-            		else if(array[0].equals("event")) {
+            		else if(array[0].equals("request") && array[1].equals("resource")) 
+            		{
+            			msg = this.msgPasser.receive();
+            			
+            			sendForResource("request");
+            		}
+            		else if(array[0].equals("event")) 
+            		{
 System.out.println("Lamport time " + this.msgPasser.getClockSer().getTs().getLamportClock());
             			this.msgPasser.getClockSer().addTS(this.msgPasser.getLocalName());
 System.out.println("Lamport time " + this.msgPasser.getClockSer().getTs().getLamportClock());
@@ -197,7 +284,8 @@ System.out.println("Lamport time " + this.msgPasser.getClockSer().getTs().getLam
 						TimeStampedMessage newLogMsg = new TimeStampedMessage("logger", "log", logMsg, null, this.msgPasser.getLocalName());
 						this.msgPasser.send(newLogMsg);
             			//this.msgPasser.logEvent(array[1], this.msgPasser.getClockSer().getTs().makeCopy());
-            		} else {
+            		} else 
+            		{
             			System.out.println("Invalid Command!");
             		}
             	}
