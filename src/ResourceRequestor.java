@@ -1,9 +1,9 @@
 /**
  * @file CmdTool.java
- * @brief Interactive application with user
+ * @brief Interactive application with user for requesting resources
  * @author  aboos
- * 			dil1
- * @date 02/09/2014
+ * 			ykandiss
+ * @date 02/17/2014
  */
 
 import java.io.BufferedReader;
@@ -20,12 +20,13 @@ public class ResourceRequestor {
 	 * Command Type:
 	 * quit: quit the whole process
 	 * ps: print the information of current MessagePasser
+	 * request to be in cs: request resource
+	 * release cs: release
 	 * send command: dest <kind> <data>
 	 * send log command : log <dest> <kind> <data>
 	 * request resource command : request resource
 	 * receive command: receive
 	 * receive log command : receive log
-	 * 
 	 */
 	
 	private MessagePasser msgPasser;
@@ -84,7 +85,8 @@ public class ResourceRequestor {
 					} 
 					else
 					{
-						System.out.println("Received non-standard message");
+						System.out.println("Received message from " + ts.getSrc() + ":");
+						System.out.println(ts.getData());
 					}
 					recv_count++;
 				}

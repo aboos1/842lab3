@@ -476,6 +476,7 @@ public class MessagePasser {
 				this.clockSer.updateTS(msg.getMsgTS());
 				this.clockSer.addTS(this.localName);
 				/* */
+				System.out.println("received CS: " + ((TimeStampedMessage)msg).getMsgTS());
 
 				return popMsg;
 			}

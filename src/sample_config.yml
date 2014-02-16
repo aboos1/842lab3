@@ -31,7 +31,11 @@ configuration :
       ip : 127.0.0.1   
       port : 50011 
       clockType: logical
+      
 sendRules : 
+    - action : delay
+      src : c
+      kind : request
       
 receiveRules :    
 
