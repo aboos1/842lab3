@@ -111,6 +111,8 @@ public class ResourceRequestor {
 		}
 	}
 	
+	
+	/*
 	public class CSHandler extends Thread
 	{
 		public void run()
@@ -139,7 +141,9 @@ public class ResourceRequestor {
 			}
 		}
 		
-		private synchronized void releaseResource()
+	}*/
+		
+	private synchronized void releaseResource()
 		{
 			System.out.println(msgPasser.getLocalName() + " is releasing resource now");
 			// clear okay_rcv
@@ -150,13 +154,11 @@ public class ResourceRequestor {
 			IN_CS = false;
 			sendForResource("release");
 		}
-		
-	}
 	
 	public ResourceRequestor(MessagePasser msgPasser) {
 		this.msgPasser = msgPasser;
 		new receiveRequest(msgPasser).start();
-		new CSHandler().start();
+		//new CSHandler().start();
 	}
 	
 	public void sendForResource(String message_king)
@@ -251,7 +253,9 @@ public class ResourceRequestor {
             			System.out.println("We receive");
 ((TimeStampedMessage)msg).dumpMsg();
             		}
-            	} 
+            	} else if(cmdInput.equals("release")){
+            		releaseResource();
+            	}
             	else if(array.length == 2) 
             	{
             		if(array[0].equals("receive") && array[1].equals("log")) 
@@ -271,7 +275,7 @@ public class ResourceRequestor {
             		}
             		else if(array[0].equals("request") && array[1].equals("resource")) 
             		{
-            			msg = this.msgPasser.receive();
+            			//msg = this.msgPasser.receive();
             			
             			sendForResource("request");
             		}
